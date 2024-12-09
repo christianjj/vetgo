@@ -1,16 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:intl_phone_number_input/intl_phone_number_input.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:vet_go/reusable_widgets/widgets.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
-import 'package:url_launcher/url_launcher.dart'; // Import file_picker
+import 'package:vet_go/reusable_widgets/widgets.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,6 +19,8 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _fnameController = TextEditingController();
   final TextEditingController _lnameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -33,6 +34,7 @@ class _RegisterPageState extends State<RegisterPage> {
   int _age = 0;
   bool _isPasswordVisible = false;
   bool _isCPasswordVisible = false;
+  bool _isLoading = false;
   LatLng? _currentLocation;
   final MapController _mapController = MapController();
 
@@ -144,44 +146,114 @@ class _RegisterPageState extends State<RegisterPage> {
           _addressError == null &&
           _phoneError == null;
     });
-
     return isValid;
   }
 
   // Function to register user
-  Future<void> registerUser() async {
+  registerUser() async {
+    setState(() {
+      _isLoading = true;
+    });
     if (_validateFields()) {
-      final url = Uri.parse('http://10.0.2.2/VETGO/register.php');
-      final response = await http.post(url, body: {
-        'FNAME': _fnameController.text,
-        'LNAME': _lnameController.text,
-        'EMAIL_ADDRESS': _emailController.text,
-        'USERNAME': _usernameController.text,
-        'PASSWORD': _passwordController.text,
-        'BIRTHDATE': _birthdateController.text,
-        'CONTACT_NUM': phoneNumberString,
-        'ADDRESS': _addressController.text,
-      });
+      //   final url = Uri.parse('http://10.0.2.2/VETGO/register.php');
+      //   final response = await http.post(url, body: {
+      //     'FNAME': _fnameController.text,
+      //     'LNAME': _lnameController.text,
+      //     'EMAIL_ADDRESS': _emailController.text,
+      //     'USERNAME': _usernameController.text,
+      //     'PASSWORD': _passwordController.text,
+      //     'BIRTHDATE': _birthdateController.text,
+      //     'CONTACT_NUM': phoneNumberString,
+      //     'ADDRESS': _addressController.text,
+      //   });
+      //
+      //   if (response.statusCode == 200) {
+      //     final responseData = json.decode(response.body);
+      //     if (responseData['success']) {
+      //       print('User registered successfully!');
+      //       Navigator.pushNamed(context, '/homepage');
+      //     } else {
+      //       ScaffoldMessenger.of(context).showSnackBar(
+      //         SnackBar(
+      //             content:
+      //                 Text('Registration failed: ${responseData['message']}')),
+      //       );
+      //     }
+      //   } else {
+      //     print('Error: ${response.statusCode}');
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(
+      //           content: Text('Registration error. Please try again.')),
+      //     );
+      //   }
+      // }
+      try {
+        // Check if the user email already exists in Authentication
+        final List<String> methods = await _auth.fetchSignInMethodsForEmail(
+          _emailController.text.trim(),
+        );
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['success']) {
-          print('User registered successfully!');
-          Navigator.pushNamed(context, '/homepage');
-        } else {
+        if (methods.isNotEmpty) {
+          // Email already exists
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("This email is already registered.")),
+          );
+          setState(() {
+            _isLoading = false; // Stop loading
+          });
+          return;
+        }
+
+        // Check if the mobile number already exists in Firestore
+        final QuerySnapshot result = await _firestore
+            .collection('users')
+            .where('mobileNumber', isEqualTo: phoneNumberString)
+            .get();
+
+        if (result.docs.isNotEmpty) {
+          // Mobile number already exists
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text('Registration failed: ${responseData['message']}')),
+                content: Text("This mobile number is already registered.")),
           );
+          setState(() {
+            _isLoading = false; // Stop loading
+          });
+          return;
         }
-      } else {
-        print('Error: ${response.statusCode}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Registration error. Please try again.')),
+        UserCredential userCredential =
+            await _auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
         );
+        await _firestore.collection('users').doc(userCredential.user?.uid).set({
+          'email': _emailController.text.trim(),
+          'fname': _fnameController.text.trim(),
+          'lname': _lnameController.text.trim(),
+          'lname': _lnameController.text.trim(),
+          'mobileNumber': phoneNumberString,
+          'age': _age,
+          'address': _addressController.text.trim(),
+          'birthdate': _birthdateController.text.trim(),
+          'userType' : "client",
+          'createdAt': DateTime.now(),
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Registration Successful")),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -444,13 +516,20 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
                   )),
-
+              if (_isLoading)
+                Container(
+                  color: Colors.white, // Semi-transparent background
+                  child: Center(
+                    child: CircularProgressIndicator(), // Loading spinner
+                  ),
+                ),
               ElevatedButton(
                 onPressed: () {
-                  registerUser();
+                  if (!_isLoading) registerUser();
                 },
                 child: const Text('Register'),
               ),
+
             ],
           ),
         ),

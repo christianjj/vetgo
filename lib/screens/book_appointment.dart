@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For formatting date
-import 'package:url_launcher/url_launcher.dart'; // For launching GCash app
-import 'package:http/http.dart' as http; // For making HTTP requests
 import 'dart:convert'; // For JSON encoding/decoding
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // For making HTTP requests
+import 'package:intl/intl.dart'; // For formatting date
+import 'package:url_launcher/url_launcher.dart'; // For launching GCash app
+
 class BookAppointmentPage extends StatefulWidget {
-  final int clinicId;
+  final String clinicId;
   final String clinicName;
 
   BookAppointmentPage({required this.clinicId, required this.clinicName});
@@ -15,6 +18,7 @@ class BookAppointmentPage extends StatefulWidget {
 }
 
 class _BookAppointmentPageState extends State<BookAppointmentPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
   TextEditingController nameController = TextEditingController();
   TextEditingController contactController = TextEditingController();
@@ -22,14 +26,16 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   TextEditingController petNameController = TextEditingController();
   TextEditingController petBreedController = TextEditingController();
   TextEditingController petAgeController = TextEditingController();
-  List<dynamic> _services = [];
-  String? selectedService;
+  List<Map<String, dynamic>> services = [];
+  Map<String, dynamic>? selectedService;
   late String clinicName;
-
+  bool _isLoading = false;
+  User? user = FirebaseAuth.instance.currentUser;
   @override
   void initState() {
     super.initState();
-    _fetchServices(); // Fetch services from the backend
+    _fetchServices();
+
   }
 
   // Function to launch GCash app
@@ -85,15 +91,32 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   // Function to fetch services from the backend
   void _fetchServices() async {
-    final response =
-        await http.get(Uri.parse('http://10.0.2.2/VETGO/fetch_services.php'));
+    // final response =
+    //     await http.get(Uri.parse('http://10.0.2.2/VETGO/fetch_services.php'));
+    //
+    // if (response.statusCode == 200) {
+    //   setState(() {
+    //     _services = jsonDecode(response.body);
+    //   });
+    // } else {
+    //   print('Failed to load services');
+    // }
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('clinic')
+          .doc(widget.clinicId)
+          .get();
 
-    if (response.statusCode == 200) {
-      setState(() {
-        _services = jsonDecode(response.body);
-      });
-    } else {
-      print('Failed to load services');
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null && data['Services'] != null) {
+          setState(() {
+            services = List<Map<String, dynamic>>.from(data['Services']);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetching services: $e');
     }
   }
 
@@ -138,38 +161,77 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   // Function to validate and submit the form
   void _submitForm() async {
+    setState(() {
+      _isLoading = true;
+    });
     if (_formKey.currentState!.validate()) {
       // Prepare data to send to the backend
-      final Map<String, dynamic> appointmentData = {
-        'name': nameController.text,
-        'contact_number': contactController.text,
-        'appointment_date': dateController.text,
-        'pet_name': petNameController.text,
-        'pet_breed': petBreedController.text,
-        'pet_age': petAgeController.text,
-        'service': selectedService,
-        'clinic_id': widget.clinicId.toString(),
-      };
+      //   final Map<String, dynamic> appointmentData = {
+      //     'name': nameController.text,
+      //     'contact_number': contactController.text,
+      //     'appointment_date': dateController.text,
+      //     'pet_name': petNameController.text,
+      //     'pet_breed': petBreedController.text,
+      //     'pet_age': petAgeController.text,
+      //     'service': selectedService,
+      //     'clinic_id': widget.clinicId.toString(),
+      //   };
+      //
+      //   // Send data to the PHP script
+      //   final response = await http.post(
+      //     Uri.parse('http://10.0.2.2/VETGO/insert_appointment.php'),
+      //     body: appointmentData,
+      //   );
+      //
+      //   if (response.statusCode == 200) {
+      //     final responseData = jsonDecode(response.body);
+      //     if (responseData['status'] == 'success') {
+      //       // Show bank details after successful submission
+      //       _showBankDetailsModal();
+      //     } else {
+      //       // Show error message
+      //       _showErrorDialog(responseData['message']);
+      //     }
+      //   } else {
+      //     // Handle server error
+      //     _showErrorDialog('Server error. Please try again later.');
+      //   }
+      try {
+        // Create a user for the shop owner
 
-      // Send data to the PHP script
-      final response = await http.post(
-        Uri.parse('http://10.0.2.2/VETGO/insert_appointment.php'),
-        body: appointmentData,
-      );
+        // Add shop details to Firestore
+        await FirebaseFirestore.instance.collection('appointments').add({
+          'name': nameController.text.trim(),
+          'contact_number': contactController.text.trim(),
+          'appointment_date': dateController.text,
+          'pet_name': petNameController.text.trim(),
+          'pet_breed': petBreedController.text.trim(),
+          'pet_age': petAgeController.text.trim(),
+          'service': selectedService,
+          'userid': user?.uid,
+          'clinic_id': widget.clinicId.toString(),
+          'createdAt': DateTime.now(),
+        });
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
-          // Show bank details after successful submission
-          _showBankDetailsModal();
-        } else {
-          // Show error message
-          _showErrorDialog(responseData['message']);
-        }
-      } else {
-        // Handle server error
-        _showErrorDialog('Server error. Please try again later.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Appointment successfully created")),
+        );
+
+        // Navigate to the shop dashboard or login screen
+        Navigator.pushNamed(context, '/homepage');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -293,7 +355,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                 },
               ),
               // Services Dropdown
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<Map<String, dynamic>>(
                 hint: Text('Select a service'),
                 value: selectedService,
                 onChanged: (newValue) {
@@ -301,10 +363,12 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                     selectedService = newValue;
                   });
                 },
-                items: _services.map<DropdownMenuItem<String>>((service) {
-                  return DropdownMenuItem<String>(
-                    value: service['service_name'],
-                    child: Text(service['service_name']),
+                items: services.map((service) {
+                  return DropdownMenuItem<Map<String, dynamic>>(
+                    value: service,
+                    child: Text(
+                      '${service['serviceName']} - ₱${service['servicePrice']}',
+                    ),
                   );
                 }).toList(),
                 validator: (value) {

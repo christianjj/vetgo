@@ -1,6 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:vet_go/screens/admin_home.dart';
 import 'package:vet_go/screens/clinic_admin.dart';
+import 'package:vet_go/screens/clinic_details.dart';
 import 'package:vet_go/screens/clinic_registration.dart';
 import 'package:vet_go/screens/history.dart';
 import 'package:vet_go/screens/homepage.dart';
@@ -8,7 +10,9 @@ import 'package:vet_go/screens/register.dart';
 import 'package:vet_go/screens/splash.dart';
 import 'package:vet_go/screens/user_login.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 

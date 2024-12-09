@@ -33,7 +33,7 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
   Future<void> _getClinicCoordinates() async {
     try {
       List<Location> locations =
-          await locationFromAddress(widget.clinic['clinic_address']);
+          await locationFromAddress(widget.clinic['clinicAddress']);
       if (locations.isNotEmpty) {
         setState(() {
           clinicLocation =
@@ -50,7 +50,7 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
         await _getRoute(widget.userLocation, clinicLocation);
       } else {
         print(
-            "No locations found for the address: ${widget.clinic['clinic_address']}");
+            "No locations found for the address: ${widget.clinic['clinicAddress']}");
       }
     } catch (e) {
       print("Error fetching clinic coordinates: $e");
@@ -95,7 +95,7 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.clinic['clinic_name'] ?? ''),
+        title: Text(widget.clinic['clinicName'] ?? ''),
         backgroundColor: Color.fromRGBO(184, 225, 241, 1),
       ),
       body: Padding(
@@ -104,12 +104,12 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.clinic['clinic_name'] ?? '',
+              widget.clinic['clinicAddress'] ?? '',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
             Text(
-              'Address: ${widget.clinic['clinic_address'] ?? ''}',
+              'Address: ${widget.clinic['clinicAddress'] ?? ''}',
               style: TextStyle(fontSize: 18),
             ),
             SizedBox(height: 8),
@@ -122,14 +122,12 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
               onPressed: () {
                 // print("Clinic ID type: ${widget.clinic['id'].runtimeType}");
                 // print("Clinic data: ${widget.clinic['id']}");
-                int clinicId =
-                    int.tryParse(widget.clinic['id'].toString()) ?? 0;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => BookAppointmentPage(
-                      clinicId: clinicId,
-                      clinicName: widget.clinic['clinic_name'],
+                      clinicId: widget.clinic['id'],
+                      clinicName: widget.clinic['clinicName'],
                     ),
                   ),
                 );

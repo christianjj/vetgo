@@ -24,6 +24,7 @@ if (flutterVersionName == null) {
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace "com.example.vet_go"
@@ -48,7 +49,7 @@ android {
         applicationId "com.example.vet_go"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-         minSdkVersion flutter.minSdkVersion // Update this to at least 20
+         minSdkVersion 23 // Update this to at least 20
         targetSdkVersion 34 // You can set this to the latest stable version
         versionCode 1
         versionName "1.0"
@@ -58,6 +59,10 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
+            signingConfig signingConfigs.debug
+        }
+
+        debug{
             signingConfig signingConfigs.debug
         }
     }

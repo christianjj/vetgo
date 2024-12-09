@@ -1,13 +1,12 @@
-import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:open_file/open_file.dart';
-import 'package:url_launcher/url_launcher.dart'; // Import file_picker
 
 class ClinicRegistrationPage extends StatefulWidget {
   @override
@@ -15,14 +14,20 @@ class ClinicRegistrationPage extends StatefulWidget {
 }
 
 class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
   final TextEditingController ownerNameController = TextEditingController();
   final TextEditingController ownerEmailController = TextEditingController();
   final TextEditingController ownerIdController = TextEditingController();
   final TextEditingController clinicNameController = TextEditingController();
   final TextEditingController clinicAddressController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   String registrationNumber = '';
   LatLng selectedLocation = LatLng(0, 0);
+  String? _passwordError;
+  bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
   // Store file paths for the documents
   Map<String, String?> uploadedFiles = {
@@ -131,7 +136,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                                 try {
                                   // Geocode the search query
                                   List<Location> locations =
-                                  await locationFromAddress(query);
+                                      await locationFromAddress(query);
                                   if (locations.isNotEmpty) {
                                     // Update map position based on the search result
                                     Location location = locations.first;
@@ -145,7 +150,8 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                                   }
                                 } catch (e) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Location not found')),
+                                    SnackBar(
+                                        content: Text('Location not found')),
                                   );
                                 }
                               }
@@ -160,7 +166,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                               try {
                                 // Geocode the search query
                                 List<Location> locations =
-                                await locationFromAddress(query);
+                                    await locationFromAddress(query);
                                 if (locations.isNotEmpty) {
                                   // Update map position based on the search result
                                   Location location = locations.first;
@@ -198,7 +204,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                           children: [
                             TileLayer(
                               urlTemplate:
-                              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                               subdomains: ['a', 'b', 'c'],
                             ),
                             MarkerLayer(
@@ -262,7 +268,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                     onPressed: () async {
                       try {
                         List<Placemark> placemarks =
-                        await placemarkFromCoordinates(
+                            await placemarkFromCoordinates(
                           selectedLocation.latitude,
                           selectedLocation.longitude,
                         );
@@ -294,75 +300,131 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
     );
   }
 
-  Future<void> _submitForm() async {
+  _submitForm() async {
+    setState(() {
+      _isLoading = true;
+    });
+    Map<String, dynamic> filesToUpload = {};
+    uploadedFiles.forEach((key, value) {
+      filesToUpload[key] =
+          value; // You might need to handle file uploads differently
+    });
+    bool allFilesUploaded =
+    uploadedFiles.values.every((filePath) => filePath != null);
     if (_formKey.currentState!.validate()) {
       // Check if all required files are uploaded
-      bool allFilesUploaded =
-          uploadedFiles.values.every((filePath) => filePath != null);
       if (!allFilesUploaded) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Please upload all required documents')),
         );
         return;
       }
+      else{
+        setState(() {
+          _isLoading = false;
+        });
+      }
 
-      // Submit the form data to the server
-      String ownerName = ownerNameController.text;
-      String ownerEmail = ownerEmailController.text;
-      String ownerId = ownerIdController.text;
-      String clinicName = clinicNameController.text;
-      String clinicAddress = clinicAddressController.text;
+      try {
+        // Create a user for the shop owner
+        UserCredential userCredential =
+            await _auth.createUserWithEmailAndPassword(
+          email: ownerEmailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
-      // Prepare files for upload (if your API expects file paths or base64)
-      // Here, we'll assume you send file paths as strings. Adjust accordingly.
-      Map<String, dynamic> filesToUpload = {};
-      uploadedFiles.forEach((key, value) {
-        filesToUpload[key] =
-            value; // You might need to handle file uploads differently
-      });
-
-      // Send API request to register clinic
-      final response = await http.post(
-        Uri.parse(
-            'http://10.0.2.2/VETGO/register_clinic.php'), // Update with your API endpoint
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(<String, dynamic>{
-          'owner_name': ownerName,
-          'owner_email': ownerEmail,
-          'owner_id_number': ownerId,
-          'clinic_name': clinicName,
-          'clinic_address': clinicAddress,
+        // Add shop details to Firestore
+        await _firestore.collection('clinic').doc(userCredential.user?.uid).set({
+          'ownerName': ownerNameController.text.trim(),
+          'ownerId': ownerIdController.text.trim(),
+          'clinicName': clinicNameController.text.trim(),
+          'clinicAddress': clinicAddressController.text.trim(),
           'latitude': selectedLocation.latitude,
           'longitude': selectedLocation.longitude,
           'registration_number': registrationNumber,
-          'uploaded_files': filesToUpload, // Include uploaded file paths
-        }),
-      );
+          'userType': "clinic",
+          'uploaded_files': filesToUpload,
+          'createdAt': DateTime.now(),
+        });
 
-      if (response.statusCode == 200) {
-        final responseBody = jsonDecode(response.body);
-        if (responseBody['error'] != null) {
-          // Handle specific error messages
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(responseBody['error'])),
-          );
-        } else {
-          // Successfully registered
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Clinic registered successfully!')),
-          );
-          // Navigate to the admin home page
-          Navigator.pushReplacementNamed(
-              context, '/clinic_admin'); // Ensure you have this route set up
-        }
-      } else {
-        // Error registering
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to register clinic!')),
+          SnackBar(content: Text("Clinic Registered Successfully")),
         );
+
+        // Navigate to the shop dashboard or login screen
+        Navigator.pushNamed(context, '/clinic_admin');
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
+
+      // Submit the form data to the server
+      // String ownerName = ownerNameController.text;
+      // String ownerEmail = ownerEmailController.text;
+      // String ownerId = ownerIdController.text;
+      // String clinicName = clinicNameController.text;
+      // String clinicAddress = clinicAddressController.text;
+      //
+      // // Prepare files for upload (if your API expects file paths or base64)
+      // // Here, we'll assume you send file paths as strings. Adjust accordingly.
+      // Map<String, dynamic> filesToUpload = {};
+      // uploadedFiles.forEach((key, value) {
+      //   filesToUpload[key] =
+      //       value; // You might need to handle file uploads differently
+      // });
+      //
+      // // Send API request to register clinic
+      // final response = await http.post(
+      //   Uri.parse(
+      //       'http://10.0.2.2/VETGO/register_clinic.php'), // Update with your API endpoint
+      //   headers: <String, String>{
+      //     'Content-Type': 'application/json; charset=UTF-8',
+      //   },
+      //   body: jsonEncode(<String, dynamic>{
+      //     'owner_name': ownerName,
+      //     'owner_email': ownerEmail,
+      //     'owner_id_number': ownerId,
+      //     'clinic_name': clinicName,
+      //     'clinic_address': clinicAddress,
+      //     'latitude': selectedLocation.latitude,
+      //     'longitude': selectedLocation.longitude,
+      //     'registration_number': registrationNumber,
+      //     'uploaded_files': filesToUpload, // Include uploaded file paths
+      //   }),
+      // );
+      //
+      // if (response.statusCode == 200) {
+      //   final responseBody = jsonDecode(response.body);
+      //   if (responseBody['error'] != null) {
+      //     // Handle specific error messages
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       SnackBar(content: Text(responseBody['error'])),
+      //     );
+      //   } else {
+      //     // Successfully registered
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       SnackBar(content: Text('Clinic registered successfully!')),
+      //     );
+      //     // Navigate to the admin home page
+      //     Navigator.pushReplacementNamed(
+      //         context, '/clinic_admin'); // Ensure you have this route set up
+      //   }
+      // } else {
+      //   // Error registering
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(content: Text('Failed to register clinic!')),
+      //   );
+      // }
+    }
+    else{
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -426,6 +488,27 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                   }
                   return null;
                 },
+              ),
+              SizedBox(height: 10),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  errorText: _passwordError,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  ),
+                ),
+                obscureText: !_isPasswordVisible,
               ),
               SizedBox(height: 10),
               TextFormField(
@@ -497,6 +580,15 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                     ),
                   )),
               SizedBox(height: 20),
+              if (_isLoading)
+                Stack(children: [
+                  Container(
+                    color: Colors.white,
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                ]),
               ElevatedButton(
                 onPressed: _submitForm,
                 child: Text('Register Clinic'),
