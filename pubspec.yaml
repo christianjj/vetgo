@@ -38,6 +38,9 @@ dependencies:
   image_picker: ^1.0.0
   open_file: ^3.2.1
   win32: ^5.9.0
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.5.1
 
 
 

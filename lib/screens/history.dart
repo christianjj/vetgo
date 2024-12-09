@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -11,11 +13,13 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   List<Map<String, dynamic>> appointmentHistory = [];
   int _currentIndex = 1;
+  bool isClinic = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchAppointmentHistory();
+    //_fetchAppointmentHistory();
+    fetchAppointmentsBasedOnRole();
   }
 
   Future<void> _fetchAppointmentHistory() async {
@@ -54,6 +58,58 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
+  Future<void> fetchAppointmentsBasedOnRole() async {
+    // Get the current user
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      // Get the document ID of the current user
+      String userDocId = currentUser.uid;
+
+      // Check if the user is a clinic or not
+      DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userDocId)
+          .get();
+
+      if (userSnapshot.exists) {
+        // Assuming the user has a role field (isClinic: true/false)
+        isClinic = userSnapshot.data() != null && userSnapshot['isClinic'] == true;
+        // Fetch appointments
+        QuerySnapshot appointmentsSnapshot;
+
+        if (isClinic) {
+          // Query for clinics
+          appointmentsSnapshot = await FirebaseFirestore.instance
+              .collection('appointments')
+              .where('clinic_id', isEqualTo: userDocId)
+              .get();
+        } else {
+          // Query for users
+          appointmentsSnapshot = await FirebaseFirestore.instance
+              .collection('appointments')
+              .where('userid', isEqualTo: userDocId)
+              .get();
+        }
+
+        // Print the results
+        if (appointmentsSnapshot.docs.isNotEmpty) {
+          setState(() {
+            appointmentHistory = appointmentsSnapshot.docs
+                .map((doc) => Map<String, dynamic>.from(doc.data() as Map))
+                .toList();
+          });
+        } else {
+          print("No appointments found for this user/clinic.");
+        }
+      } else {
+        print("User does not exist in the database.");
+      }
+    } else {
+      print("No user is logged in.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,12 +123,22 @@ class _HistoryPageState extends State<HistoryPage> {
           : ListView.builder(
               itemCount: appointmentHistory.length,
               itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(
-                      '${appointmentHistory[index]['name']} - ${appointmentHistory[index]['appointment_date']}'),
-                  subtitle:
-                      Text('Status: ${appointmentHistory[index]['status']}'),
-                );
+                if(isClinic) {
+                  return ListTile(
+                    title: Text(
+                        '${appointmentHistory[index]['name']} - ${appointmentHistory[index]['appointment_date']}'),
+                    subtitle:
+                    Text('Status: Pending}'),
+                  );
+                }
+                else{
+                  return ListTile(
+                    title: Text(
+                        '${appointmentHistory[index]['clinicName']} - ${appointmentHistory[index]['appointment_date']}'),
+                    subtitle:
+                    Text('Status: "Pending'),
+                  );
+                }
               },
             ),
       bottomNavigationBar: BottomNavigationBar(

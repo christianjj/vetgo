@@ -1,11 +1,11 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
+
 import 'clinic_details.dart';
 import 'history.dart';
 
@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
                         FlutterMap(
                           mapController: mapController,
                           options: MapOptions(
-                            initialCenter: selectedLocation, // Corrected initial positioning
+                            initialCenter: selectedLocation,
                             initialZoom: 13.0,
                             onTap: (tapPosition, LatLng newPosition) {
                               setModalState(() {
@@ -87,7 +87,7 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             TileLayer(
                               urlTemplate:
-                              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                               subdomains: ['a', 'b', 'c'],
                             ),
                             MarkerLayer(
@@ -105,45 +105,6 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ),
                           ],
-                        ),
-                        // Zoom Controls in a Stack
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.all(10),
-                                child: FloatingActionButton(
-                                  heroTag: null,
-                                  onPressed: () {
-                                    setModalState(() {
-                                      mapController.move(
-                                        mapController.camera.center,
-                                        mapController.camera.zoom + 1,
-                                      );
-                                    });
-                                  },
-                                  child: const Icon(Icons.zoom_in),
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.all(10),
-                                child: FloatingActionButton(
-                                  heroTag: null,
-                                  onPressed: () {
-                                    setModalState(() {
-                                      mapController.move(
-                                        mapController.camera.center,
-                                        mapController.camera.zoom - 1,
-                                      );
-                                    });
-                                  },
-                                  child: const Icon(Icons.zoom_out),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -226,17 +187,19 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  // Fetch clinics from Firebase Firestore
   Future<void> fetchClinics() async {
-    final url = Uri.parse('http://10.0.2.2/VETGO/get_clinics.php');
-    final response = await http.get(url);
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final QuerySnapshot clinicSnapshot =
+        await firestore.collection('clinic').get();
 
-    if (response.statusCode == 200) {
-      setState(() {
-        clinicList = json.decode(response.body);
-      });
-    } else {
-      print("Failed to load clinics");
-    }
+    setState(() {
+      clinicList = clinicSnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Add Document ID to the data
+        return data;
+      }).toList();
+    });
   }
 
   void _showConfirmationDialog({
@@ -353,12 +316,12 @@ class _HomePageState extends State<HomePage> {
                     },
                     child: Card(
                       child: ListTile(
-                        title: Text(clinic['clinic_name'] ?? 'Clinic'),
+                        title: Text(clinic['clinicName'] ?? 'Clinic'),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(clinic['clinic_address'] ?? ''),
-                            Text(clinic['clinic_contact'] ?? ''),
+                            Text(clinic['clinicAddress'] ?? ''),
+                            Text(clinic['ownerName'] ?? ''),
                           ],
                         ),
                       ),
@@ -366,7 +329,7 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
-            )
+            ),
           ],
         ),
       ),
