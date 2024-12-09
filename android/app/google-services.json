@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1073877416423",
+    "project_id": "vetgo-ba3c2",
+    "storage_bucket": "vetgo-ba3c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1073877416423:android:377084b454da6681e36542",
+        "android_client_info": {
+          "package_name": "com.example.vet_go"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnyCsdubRN4wRPGd8kH9Kn-PbrZEVELho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
