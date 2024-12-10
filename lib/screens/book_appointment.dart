@@ -196,23 +196,23 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       //     // Handle server error
       //     _showErrorDialog('Server error. Please try again later.');
       //   }
-      try {
+     // try {
         // Create a user for the shop owner
 
         // Add shop details to Firestore
-        await FirebaseFirestore.instance.collection('appointments').add({
-          'clinicName': widget.clinicName.toString(),
-          'name': nameController.text.trim(),
-          'contact_number': contactController.text.trim(),
-          'appointment_date': dateController.text,
-          'pet_name': petNameController.text.trim(),
-          'pet_breed': petBreedController.text.trim(),
-          'pet_age': petAgeController.text.trim(),
-          'service': selectedService,
-          'userid': user?.uid,
-          'clinic_id': widget.clinicId.toString(),
-          'createdAt': DateTime.now(),
-        });
+        // await FirebaseFirestore.instance.collection('appointments').add({
+        //   'clinicName': widget.clinicName.toString(),
+        //   'name': nameController.text.trim(),
+        //   'contact_number': contactController.text.trim(),
+        //   'appointment_date': dateController.text,
+        //   'pet_name': petNameController.text.trim(),
+        //   'pet_breed': petBreedController.text.trim(),
+        //   'pet_age': petAgeController.text.trim(),
+        //   'service': selectedService,
+        //   'userid': user?.uid,
+        //   'clinic_id': widget.clinicId.toString(),
+        //   'createdAt': DateTime.now(),
+     //   });
       //   final Map<String, dynamic> appointmentData = {
       //     'name': nameController.text,
       //     'contact_number': contactController.text,
@@ -249,6 +249,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         // Add shop details to Firestore
         await FirebaseFirestore.instance.collection('appointments').add({
           'name': nameController.text.trim(),
+          'clinicName': widget.clinicName.toString(),
           'contact_number': contactController.text.trim(),
           'appointment_date': dateController.text,
           'pet_name': petNameController.text.trim(),
