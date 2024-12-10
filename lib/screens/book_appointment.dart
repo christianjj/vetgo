@@ -213,6 +213,52 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
           'clinic_id': widget.clinicId.toString(),
           'createdAt': DateTime.now(),
         });
+      //   final Map<String, dynamic> appointmentData = {
+      //     'name': nameController.text,
+      //     'contact_number': contactController.text,
+      //     'appointment_date': dateController.text,
+      //     'pet_name': petNameController.text,
+      //     'pet_breed': petBreedController.text,
+      //     'pet_age': petAgeController.text,
+      //     'service': selectedService,
+      //     'clinic_id': widget.clinicId.toString(),
+      //   };
+      //
+      //   // Send data to the PHP script
+      //   final response = await http.post(
+      //     Uri.parse('http://10.0.2.2/VETGO/insert_appointment.php'),
+      //     body: appointmentData,
+      //   );
+      //
+      //   if (response.statusCode == 200) {
+      //     final responseData = jsonDecode(response.body);
+      //     if (responseData['status'] == 'success') {
+      //       // Show bank details after successful submission
+      //       _showBankDetailsModal();
+      //     } else {
+      //       // Show error message
+      //       _showErrorDialog(responseData['message']);
+      //     }
+      //   } else {
+      //     // Handle server error
+      //     _showErrorDialog('Server error. Please try again later.');
+      //   }
+      try {
+        // Create a user for the shop owner
+
+        // Add shop details to Firestore
+        await FirebaseFirestore.instance.collection('appointments').add({
+          'name': nameController.text.trim(),
+          'contact_number': contactController.text.trim(),
+          'appointment_date': dateController.text,
+          'pet_name': petNameController.text.trim(),
+          'pet_breed': petBreedController.text.trim(),
+          'pet_age': petAgeController.text.trim(),
+          'service': selectedService,
+          'userid': user?.uid,
+          'clinic_id': widget.clinicId.toString(),
+          'createdAt': DateTime.now(),
+        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Appointment successfully created")),
