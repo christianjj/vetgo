@@ -1,7 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class UserLoginPage extends StatefulWidget {
   @override
@@ -28,9 +27,10 @@ class _UserLoginPageState extends State<UserLoginPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login Successful")),
+        const SnackBar(content: Text("Login Successful")),
       );
-      Navigator.pushNamed(context, '/homepage');
+      determineUserRole();
+
       // Navigate to the home screen or another screen after login
       // Navigator.pushReplacement(
       //   context,
@@ -38,45 +38,65 @@ class _UserLoginPageState extends State<UserLoginPage> {
       // );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Wrong Email or Password")),
+        const SnackBar(content: Text("Wrong Email or Password")),
       );
     } finally {
       setState(() {
         _isLoading = false; // Stop loading
       });
     }
-    // if (username.isEmpty || password.isEmpty) {
-    //   setState(() {
-    //     _errorMessage = 'Please enter both username/email and password';
-    //   });
-    //   return;
-    // }
-    //
-    // final url = Uri.parse('http://10.0.2.2/VETGO/api.php');
-    // final response = await http.post(url, body: {
-    //   'username': username,
-    //   'password': password,
-    // });
-    //
-    // print('Response status: ${response.statusCode}');
-    // print('Response body: ${response.body}');
-    //
-    // if (response.statusCode == 200) {
-    //   final responseData = json.decode(response.body);
-    //
-    //   if (responseData['user_exists'] == true) {
-    //     Navigator.pushNamed(context, '/homepage');
-    //   } else if (responseData['admin_exists'] == true) {
-    //     Navigator.pushNamed(context, '/admin_home');
-    //   } else if (responseData['clinic_admin_exists'] == true) {
-    //     Navigator.pushNamed(context, '/clinic_admin');
-    //   } else {
-    //     setState(() {
-    //       _errorMessage =
-    //           responseData['error'] ?? 'Invalid username/email or password';
-    //     });
-    //   }
-    // }
+  }
+
+  Future<void> determineUserRole() async {
+    try {
+      // Get the current user
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        String userId = currentUser.uid;
+
+        // Check in `users` collection
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+
+        if (userSnapshot.exists) {
+          // User exists in `users`
+          Map<String, dynamic> userData =
+              userSnapshot.data() as Map<String, dynamic>;
+          bool isClinic = userData['isClinic'] ?? false;
+
+          if (mounted) {
+            Navigator.pushNamed(context, '/homepage');
+          }
+          return; // Exit function after handling `users`
+        } else {
+          // Check in `clinic` collection
+          DocumentSnapshot clinicSnapshot = await FirebaseFirestore.instance
+              .collection('clinic')
+              .doc(userId)
+              .get();
+
+          if (clinicSnapshot.exists) {
+            // User exists in `clinic`
+            if (mounted) {
+              Navigator.pushNamed(context, '/clinic_admin');
+            }
+          } else {
+            print("User not found in both collections.");
+          }
+        }
+      } else {
+        print("No logged-in user.");
+      }
+    } catch (e) {
+      print('Error in determineUserRole: $e');
+    } finally {
+      setState(() {
+        _isLoading = false; // Stop loading
+      });
+    }
   }
 
   @override

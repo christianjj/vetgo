@@ -342,6 +342,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
           'latitude': selectedLocation.latitude,
           'longitude': selectedLocation.longitude,
           'registration_number': registrationNumber,
+          'isClinic': true,
           'userType': "clinic",
           'uploaded_files': filesToUpload,
           'createdAt': DateTime.now(),

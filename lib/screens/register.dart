@@ -235,7 +235,7 @@ class _RegisterPageState extends State<RegisterPage> {
           'age': _age,
           'address': _addressController.text.trim(),
           'birthdate': _birthdateController.text.trim(),
-          'userType' : "client",
+          'isClinic' : false,
           'createdAt': DateTime.now(),
         });
         ScaffoldMessenger.of(context).showSnackBar(

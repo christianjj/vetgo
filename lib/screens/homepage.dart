@@ -1,5 +1,6 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
@@ -15,6 +16,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<dynamic> clinicList = [];
   TextEditingController searchController = TextEditingController();
   TextEditingController areaSearchController = TextEditingController();
@@ -207,6 +209,7 @@ class _HomePageState extends State<HomePage> {
     required String content,
     required VoidCallback onConfirm,
   }) {
+    User? user = _auth.currentUser; // fetch user data.
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -223,7 +226,9 @@ class _HomePageState extends State<HomePage> {
             TextButton(
               onPressed: () {
                 onConfirm(); // Execute the confirmation action
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
+                _auth.signOut(); // for logout user.
+                // Close the dialog
               },
               child: Text('Yes'),
             ),
@@ -356,7 +361,7 @@ class _HomePageState extends State<HomePage> {
           });
           // Navigate to HistoryPage when the second item is tapped
           if (index == 1) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => HistoryPage(),

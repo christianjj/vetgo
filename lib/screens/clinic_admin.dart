@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ClinicAdminPage extends StatefulWidget {
   @override
@@ -8,102 +10,230 @@ class ClinicAdminPage extends StatefulWidget {
 }
 
 class _ClinicAdminPageState extends State<ClinicAdminPage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<Map<String, dynamic>> appointments = [];
   List<Map<String, dynamic>> services = [];
-  String clinicId = '1'; // Set the clinic ID
+  User? currentUser = FirebaseAuth.instance.currentUser;
+
+  //String clinicId = '1'; // Set the clinic ID
   int _currentIndex = 0; // To track the selected tab (Appointments or Services)
 
   @override
   void initState() {
     super.initState();
     _fetchAppointments();
-    _fetchServices(); // Fetch services when the page loads
+    getClinicServices(); // Fetch services when the page loads
   }
 
   // Fetch appointments from the backend
+
+  Future<void> getClinicServices() async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // Get the document ID of the current user
+        String userDocId = currentUser.uid;
+
+        DocumentSnapshot clinicSnapshot = await FirebaseFirestore.instance
+            .collection('clinic')
+            .doc(userDocId)
+            .get();
+
+        if (clinicSnapshot.exists) {
+          Map<String, dynamic> clinicData =
+          clinicSnapshot.data() as Map<String, dynamic>;
+          setState(() {
+            services =
+            List<Map<String, dynamic>>.from(clinicData['Services'] ?? []);
+          });
+        } else {
+          print("Clinic not found.");
+        }
+      }
+    } catch (e) {
+      print("Error fetching services: $e");
+    }
+  }
+
   Future<void> _fetchAppointments() async {
-    final response = await http.get(Uri.parse(
-        'http://10.0.2.2/VETGO/fetch_appointments.php?clinic_id=$clinicId'));
+    // final response = await http.get(Uri.parse(
+    //     'http://10.0.2.2/VETGO/fetch_appointments.php?clinic_id=$clinicId'));
+    //
+    // if (response.statusCode == 200) {
+    //   List<dynamic> fetchedAppointments = json.decode(response.body);
+    //   setState(() {
+    //     appointments = fetchedAppointments
+    //         .where((appointment) => appointment['status'] == 'Pending')
+    //         .map((appointment) => Map<String, dynamic>.from(appointment))
+    //         .toList();
+    //   });
+    // } else {
+    //   print("Failed to load appointments: ${response.statusCode}");
+    // }
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
-    if (response.statusCode == 200) {
-      List<dynamic> fetchedAppointments = json.decode(response.body);
+    if (currentUser != null) {
+      // Get the document ID of the current user
+      String userDocId = currentUser.uid;
+
+      // Check if the user is a clinic or not
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      final QuerySnapshot appointmentsSnapshot = await firestore
+          .collection('appointments')
+          .where('clinic_id', isEqualTo: userDocId)
+          .get();
+
       setState(() {
-        appointments = fetchedAppointments
-            .where((appointment) => appointment['status'] == 'Pending')
-            .map((appointment) => Map<String, dynamic>.from(appointment))
-            .toList();
+        if (appointmentsSnapshot.docs.isNotEmpty) {
+          appointments = appointmentsSnapshot.docs
+              .map((doc) => Map<String, dynamic>.from(doc.data() as Map))
+              .toList();
+        } else {
+          print("No appointments found for this user/clinic.");
+        }
       });
-    } else {
-      print("Failed to load appointments: ${response.statusCode}");
     }
+    // Query for clinics
   }
 
-  // Fetch services from the backend
-  Future<void> _fetchServices() async {
-    final response =
-        await http.get(Uri.parse('http://10.0.2.2/VETGO/fetch_services.php'));
+// Fetch services from the backend
+//   Future<void> _fetchServices() async {
+//     final response =
+//     await http.get(Uri.parse('http://10.0.2.2/VETGO/fetch_services.php'));
+//
+//     if (response.statusCode == 200) {
+//       List<dynamic> fetchedServices = json.decode(response.body);
+//       setState(() {
+//         services = fetchedServices
+//             .map((service) => Map<String, dynamic>.from(service))
+//             .toList();
+//       });
+//     } else {
+//       print("Failed to load services: ${response.statusCode}");
+//     }
+//   }
 
-    if (response.statusCode == 200) {
-      List<dynamic> fetchedServices = json.decode(response.body);
-      setState(() {
-        services = fetchedServices
-            .map((service) => Map<String, dynamic>.from(service))
-            .toList();
+  Future<void> addServiceToClinic(String clinicId,
+      Map<String, dynamic> newService) async {
+    try {
+      DocumentReference clinicRef =
+      FirebaseFirestore.instance.collection('clinic').doc(clinicId);
+
+      // Use Firestore's arrayUnion to add a new service
+      await clinicRef.update({
+        'Services': FieldValue.arrayUnion([newService])
       });
-    } else {
-      print("Failed to load services: ${response.statusCode}");
+      getClinicServices();
+      print("Service added successfully!");
+    } catch (e) {
+      print("Error adding service: $e");
     }
   }
 
-  // Add a service
-  Future<void> _addService(String serviceName) async {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2/VETGO/add_service.php'),
-      body: {
-        'service_name': serviceName,
-      },
-    );
-    if (response.statusCode == 200) {
-      _fetchServices(); // Reload services after adding
-    } else {
-      print('Failed to add service: ${response.statusCode}');
+// Add a service
+//   Future<void> _addService(String serviceName) async {
+//     final response = await http.post(
+//       Uri.parse('http://10.0.2.2/VETGO/add_service.php'),
+//       body: {
+//         'service_name': serviceName,
+//       },
+//     );
+//     if (response.statusCode == 200) {
+//       _fetchServices(); // Reload services after adding
+//     } else {
+//       print('Failed to add service: ${response.statusCode}');
+//     }
+//   }
+
+// Edit a service
+  Future<void> _editService(String serviceId, String newServiceName, String newPrice) async {
+    print(newPrice);
+    try {
+      // Reference to the clinic document
+      DocumentReference clinicDocRef = FirebaseFirestore.instance
+          .collection('clinic')
+          .doc(currentUser!.uid);
+
+      // Fetch the clinic document
+      DocumentSnapshot clinicSnapshot = await clinicDocRef.get();
+
+      if (clinicSnapshot.exists) {
+        // Get clinic data
+        Map<String, dynamic> clinicData =
+        clinicSnapshot.data() as Map<String, dynamic>;
+        List<dynamic> services = clinicData['Services'];
+
+        print('Current services: $services'); // Debugging: print current services
+
+        // Find the service to edit
+        int index = services.indexWhere((service) => service['serviceId'] == serviceId);
+
+        if (index != -1) {
+          // Update the service
+          services[index]['serviceName'] = newServiceName;
+          services[index]['servicePrice'] = newPrice;
+
+          // Update the document with the modified list
+          await clinicDocRef.update({'Services': services});
+          print('Service updated successfully');
+          getClinicServices();
+        } else {
+          print('Service not found');
+        }
+      } else {
+        print('Clinic document does not exist');
+      }
+    } catch (e) {
+      print('Error editing service: $e');
     }
   }
 
-  // Edit a service
-  Future<void> _editService(int serviceId, String serviceName) async {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2/VETGO/edit_service.php'),
-      body: {
-        'service_id': serviceId.toString(),
-        'service_name': serviceName,
-      },
-    );
-    if (response.statusCode == 200) {
-      _fetchServices(); // Reload services after editing
-    } else {
-      print('Failed to edit service: ${response.statusCode}');
+// Delete a service
+  Future<void> _deleteService(String serviceId) async {
+    try {
+      // Reference to the clinic document
+      DocumentReference clinicDocRef = FirebaseFirestore.instance
+          .collection('clinic')
+          .doc(currentUser!.uid);
+
+      // Fetch the clinic document
+      DocumentSnapshot clinicSnapshot = await clinicDocRef.get();
+
+      if (clinicSnapshot.exists) {
+        // Get clinic data
+        Map<String, dynamic> clinicData =
+        clinicSnapshot.data() as Map<String, dynamic>;
+        List<dynamic> services = clinicData['Services'];
+
+        print(
+            'Current services: $services'); // Debugging: print current services
+
+        // Filter out the service to delete
+        List<dynamic> updatedServices = services
+            .where((service) => service['serviceId'] != serviceId)
+            .toList();
+
+        print(
+            'Updated services: $updatedServices'); // Debugging: print updated services
+
+        // Update the document with the new array
+        await clinicDocRef.update({'Services': updatedServices});
+        getClinicServices();
+        print('Service deleted successfully');
+      } else {
+        print('Clinic document does not exist');
+      }
+    } catch (e) {
+      print('Error deleting service: $e');
     }
   }
 
-  // Delete a service
-  Future<void> _deleteService(int serviceId) async {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2/VETGO/delete_service.php'),
-      body: {
-        'service_id': serviceId.toString(),
-      },
-    );
-    if (response.statusCode == 200) {
-      _fetchServices(); // Reload services after deleting
-    } else {
-      print('Failed to delete service: ${response.statusCode}');
-    }
-  }
-
-  // Show dialog to add a service
+// Show dialog to add a service
   void _showAddServiceDialog() {
     String newServiceName = '';
+    String newServicePrice = '';
+    User? user = _auth.currentUser;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -114,14 +244,14 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
             children: [
               TextField(
                 onChanged: (value) {
-                  newServiceName = value;
+                  newServiceName = value.trim();
                 },
                 decoration: InputDecoration(hintText: "Enter service name"),
               ),
               SizedBox(height: 10),
               TextField(
                 onChanged: (value) {
-                  //newServicePrice = value;
+                  newServicePrice = value.trim();
                 },
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(hintText: "Enter service price"),
@@ -130,9 +260,39 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                _addService(newServiceName);
-                Navigator.of(context).pop();
+              onPressed: () async {
+                if (newServiceName.isEmpty || newServicePrice.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill out all fields')),
+                  );
+                  return;
+                }
+                try {
+                  // Create the service object
+                  Map<String, dynamic> service = {
+                    'serviceId': DateTime
+                        .now()
+                        .millisecondsSinceEpoch
+                        .toString(), // Unique ID
+                    'serviceName': newServiceName,
+                    'servicePrice': newServicePrice,
+                  };
+
+                  // Add the service to the clinic
+                  await addServiceToClinic(user!.uid, service);
+
+                  // Close the dialog
+                  Navigator.of(context).pop();
+
+                  // Optional: Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Service added successfully!')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error adding service: $e')),
+                  );
+                }
               },
               child: Text('Add'),
             ),
@@ -148,27 +308,44 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-  // Show dialog to edit a service
+// Show dialog to edit a service
   void _showEditServiceDialog(Map<String, dynamic> service) {
-    String updatedServiceName = service['service_name'];
+    String updatedServiceName = service['serviceName'];
+    String updatedPrice = service['servicePrice'];
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Edit Service'),
-          content: TextField(
-            controller: TextEditingController(text: updatedServiceName),
-            onChanged: (value) {
-              updatedServiceName = value;
-            },
-            decoration: InputDecoration(hintText: "Enter service name"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: TextEditingController(text: updatedServiceName),
+                onChanged: (value) {
+                  updatedServiceName = value;
+                },
+                decoration: InputDecoration(hintText: "Enter service name"),
+              ),
+              TextField(
+                controller: TextEditingController(text: updatedPrice),
+                onChanged: (value) {
+                  updatedPrice = value;
+                },
+                decoration: InputDecoration(hintText: "Enter price"),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10), // Limit to 10 digits
+                ],
+              ),
+            ],
           ),
           actions: <Widget>[
-            // Ensure the syntax is correct here
             TextButton(
               onPressed: () {
-                int serviceId = int.tryParse(service['id'].toString()) ?? 0;
-                _editService(serviceId, updatedServiceName);
+                // Ensure the double parsing and validation
+               // double updatedPrice = double.tryParse(updatedPriceName) ?? 0.0;
+                _editService(service['serviceId'], updatedServiceName, updatedPrice);
                 Navigator.of(context).pop();
               },
               child: Text('Save'),
@@ -185,7 +362,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-  // Show dialog to confirm logout
+// Show dialog to confirm logout
   void _showLogOutDialog() {
     showDialog(
       context: context,
@@ -230,7 +407,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-  // Update appointment status (Approve/Reject)
+// Update appointment status (Approve/Reject)
   Future<void> _updateAppointmentStatus(int index, String newStatus) async {
     final appointmentId = appointments[index]['id']; // Get the appointment ID
 
@@ -286,81 +463,82 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-  // Build the appointments list
+// Build the appointments list
   Widget _buildAppointmentsList() {
     return appointments.isEmpty
         ? Center(child: Text('No pending appointments available.'))
         : ListView.builder(
-            itemCount: appointments.length,
-            itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(
-                    '${appointments[index]['name']} - ${appointments[index]['appointment_date']}'),
-                subtitle: Text('Status: ${appointments[index]['status']}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () =>
-                          _updateAppointmentStatus(index, 'Approve'),
-                      child: Text('Approve'),
-                    ),
-                    SizedBox(width: 4),
-                    ElevatedButton(
-                      onPressed: () => _viewAppointmentDetails(index),
-                      style: ElevatedButton.styleFrom(
-                          foregroundColor: Color.fromARGB(255, 255, 228, 109)),
-                      child: Text('View'),
-                    ),
-                    SizedBox(width: 4),
-                    ElevatedButton(
-                      onPressed: () =>
-                          _updateAppointmentStatus(index, 'Reject'),
-                      child: Text('Reject'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 243, 92, 81)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
+      itemCount: appointments.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(
+              '${appointments[index]['name']} - ${appointments[index]['appointment_date']}'),
+          subtitle: Text('Status: ${appointments[index]['status']}'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () =>
+                    _updateAppointmentStatus(index, 'Approve'),
+                child: Text('Approve'),
+              ),
+              SizedBox(width: 4),
+              ElevatedButton(
+                onPressed: () => _viewAppointmentDetails(index),
+                style: ElevatedButton.styleFrom(
+                    foregroundColor: Color.fromARGB(255, 255, 228, 109)),
+                child: Text('View'),
+              ),
+              SizedBox(width: 4),
+              ElevatedButton(
+                onPressed: () =>
+                    _updateAppointmentStatus(index, 'Reject'),
+                child: Text('Reject'),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 243, 92, 81)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  // Build the services list
+// Build the services list
   Widget _buildServicesList() {
     return services.isEmpty
         ? Center(child: Text('No services available.'))
         : ListView.builder(
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(services[index]['service_name']),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () => _showEditServiceDialog(services[index]),
-                    ),
-                    IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () {
-                          int serviceId =
-                              int.tryParse(services[index]['id'].toString()) ??
-                                  0;
-                          _showDeleteConfirmationDialog(serviceId);
-                        } // Pass the service ID
-                        ),
-                  ],
-                ),
-              );
-            },
-          );
+      itemCount: services.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text("${services[index]['serviceName']}",
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text("Price: Php ${services[index]['servicePrice']}"),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => _showEditServiceDialog(services[index]),
+              ),
+              IconButton(
+                  icon: Icon(Icons.delete),
+                  onPressed: () {
+                    String serviceId =
+                    services[index]['serviceId'];
+                    _showDeleteConfirmationDialog(serviceId);
+                  } // Pass the service ID
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
 // Show delete confirmation dialog
-  void _showDeleteConfirmationDialog(int serviceId) {
+  void _showDeleteConfirmationDialog(String serviceId) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -397,7 +575,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
         automaticallyImplyLeading: false,
       ),
       body:
-          _currentIndex == 0 ? _buildAppointmentsList() : _buildServicesList(),
+      _currentIndex == 0 ? _buildAppointmentsList() : _buildServicesList(),
       bottomNavigationBar: BottomNavigationBar(
         items: [
           BottomNavigationBarItem(
@@ -425,12 +603,12 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
         },
       ),
       floatingActionButton:
-          _currentIndex == 1 // Show the FAB only in the services tab
-              ? FloatingActionButton(
-                  onPressed: _showAddServiceDialog,
-                  child: Icon(Icons.add),
-                )
-              : null, // Hide the FAB in other tabs
+      _currentIndex == 1 // Show the FAB only in the services tab
+          ? FloatingActionButton(
+        onPressed: _showAddServiceDialog,
+        child: Icon(Icons.add),
+      )
+          : null, // Hide the FAB in other tabs
     );
   }
 }
