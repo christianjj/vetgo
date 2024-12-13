@@ -34,7 +34,7 @@ class _UserLoginPageState extends State<UserLoginPage> {
       determineUserRole();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_errorMessage!)),
+        SnackBar(content: Text('Wrong Password or Email')),
       );
     } finally {
       setState(() {
@@ -84,7 +84,9 @@ class _UserLoginPageState extends State<UserLoginPage> {
         print("No logged-in user.");
       }
     } catch (e) {
-      print('Error in determineUserRole: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
     } finally {
       setState(() {
         _isLoading = false; // Stop loading

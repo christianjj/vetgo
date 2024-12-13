@@ -434,95 +434,120 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
 
 // Build the appointments list
   Widget _buildAppointmentsList() {
-    return appointments.isEmpty
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline, size: 50, color: Colors.grey[400]),
-                SizedBox(height: 10),
-                Text(
-                  'No pending appointments available.',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
+    return RefreshIndicator(
+        onRefresh: _fetchAppointments,
+        child: appointments.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline, size: 50, color: Colors.grey[400]),
+                    SizedBox(height: 10),
+                    Text(
+                      'No pending appointments available.',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          )
-        : ListView.builder(
-            itemCount: appointments.length,
-            itemBuilder: (context, index) {
-              final appointment = appointments[index];
+              )
+            : ListView.builder(
+                itemCount: appointments.length,
+                itemBuilder: (context, index) {
+                  final appointment = appointments[index];
 
-              return Card(
-                margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListTile(
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${appointment['name']}',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${appointment['name']}',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${appointment['appointment_date']}',
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.grey[600]),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Status: ${appointment['status']}',
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.grey[600]),
+                          ),
+                          SizedBox(height: 8),
+                        ],
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        '${appointment['appointment_date']}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Status: ${appointment['status']}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      SizedBox(height: 8),
-                    ],
-                  ),
-                  trailing: appointment['status'] == 'Pending'
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _updateAppointmentStatus(index, 'Approve'),
-                              style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.green),
-                              child: Text('Approve'),
-                            ),
-                            SizedBox(width: 4),
-                            ElevatedButton(
-                              onPressed: () => _viewAppointmentDetails(index),
-                              style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.yellow[700]),
-                              child: Text('View'),
-                            ),
-                            SizedBox(width: 4),
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _updateAppointmentStatus(index, 'Reject'),
-                              style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.red),
-                              child: Text('Reject'),
-                            ),
-                          ],
-                        )
-                      : ElevatedButton(
-                          onPressed: () => _viewAppointmentDetails(index),
-                          style: ElevatedButton.styleFrom(
-                              foregroundColor: Colors.yellow[700]),
-                          child: Text('View Details'),
-                        ),
-                ),
-              );
-            },
-          );
+                      trailing: appointment['status'] == 'Pending'
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () => _updateAppointmentStatus(
+                                      index, 'Approve'),
+                                  style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.green),
+                                  child: Text('Approve'),
+                                ),
+                                SizedBox(width: 4),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      _viewAppointmentDetails(index),
+                                  style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.yellow[700]),
+                                  child: Text('View'),
+                                ),
+                                SizedBox(width: 4),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      _updateAppointmentStatus(index, 'Reject'),
+                                  style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.red),
+                                  child: Text('Reject'),
+                                ),
+                              ],
+                            )
+                          : appointment['status'] == 'Approve'
+                              ? Row(mainAxisSize: MainAxisSize.min, children: [
+                                  ElevatedButton(
+                                    onPressed: () => _updateAppointmentStatus(
+                                        index, 'Completed'),
+                                    style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.blue,
+                                    ),
+                                    child: Text('Complete'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => _updateAppointmentStatus(
+                                        index, 'No-Show'),
+                                    style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.blue,
+                                    ),
+                                    child: Text('No-Show'),
+                                  ),
+                                ])
+                              : ElevatedButton(
+                                  onPressed: () =>
+                                      _viewAppointmentDetails(index),
+                                  style: ElevatedButton.styleFrom(
+                                      foregroundColor: Colors.yellow[700]),
+                                  child: Text('View Details'),
+                                ),
+                    ),
+                  );
+                },
+              ));
   }
 
   Widget _buildServicesList() {
