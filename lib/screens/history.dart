@@ -116,43 +116,76 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return WillPopScope(
-        onWillPop: () async {
-          // Prevent going back to the login page
-          bool isExitingApp = await _showExitConfirmation(context);
-          return isExitingApp; // Allow exit if user confirms
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('History'),
-            automaticallyImplyLeading: false,
-            backgroundColor: Color.fromRGBO(184, 225, 241, 1),
+      onWillPop: () async {
+        bool isExitingApp = await _showExitConfirmation(context);
+        return isExitingApp;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('History'),
+          automaticallyImplyLeading: false,
+          backgroundColor: const Color.fromRGBO(184, 225, 241, 1),
+          elevation: 4,
+        ),
+        body: appointmentHistory.isEmpty
+            ? const Center(
+          child: Text(
+            'No appointment history available.',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
           ),
-          body: appointmentHistory.isEmpty
-              ? const Center(child: Text('No appointment history available.'))
-              : ListView.builder(
-                  itemCount: appointmentHistory.length,
-                  itemBuilder: (context, index) {
-                    if (isClinic) {
-                      return ListTile(
-                        title: Text(
-                            '${appointmentHistory[index]['name']} - ${appointmentHistory[index]['appointment_date']}'),
-                        subtitle: Text(
-                            'Status: ${appointmentHistory[index]['status']}'),
-                      );
-                    } else {
-                      return ListTile(
-                        title: Text(
-                            '${appointmentHistory[index]['clinicName']} - ${appointmentHistory[index]['appointment_date']}'),
-                        subtitle: Text(
-                            'Status: ${appointmentHistory[index]['status']}'),
-                      );
-                    }
-                  },
-                ),
-          bottomNavigationBar: _buildBottomNavigationBar(),
         )
+            : ListView.separated(
+          itemCount: appointmentHistory.length,
+          separatorBuilder: (context, index) => const Divider(
+            thickness: 1,
+            height: 1,
+            color: Colors.grey,
+          ),
+          itemBuilder: (context, index) {
+            final appointment = appointmentHistory[index];
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blueAccent,
+                  child: Text(
+                    isClinic
+                        ? appointment['name']?.substring(0, 1) ?? ''
+                        : appointment['clinicName']?.substring(0, 1) ?? '',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                title: Text(
+                  isClinic
+                      ? '${appointment['name']} - ${appointment['appointment_date']}'
+                      : '${appointment['clinicName']} - ${appointment['appointment_date']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Status: ${appointment['status']}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                onTap: () {
+                  // Handle item tap if necessary
+                },
+              ),
+            );
+          },
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
     );
   }
 
