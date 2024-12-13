@@ -121,43 +121,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 
   // Function to show modal with bank details
-  void _showBankDetailsModal() {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return Container(
-          height: 300,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Clinic Bank Details',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              // Replace with actual bank details
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(''),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text('Account Number: 1234-5678-90'),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: _openGCashApp,
-                  child: Text('Pay via GCash'),
-                ),
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
+
 
   // Function to validate and submit the form
   void _submitForm() async {
@@ -432,15 +396,6 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
               ElevatedButton(
                 onPressed: _submitForm,
                 child: Text('Book Now'),
-              ),
-              SizedBox(
-                height: 8,
-              ),
-              ElevatedButton(
-                onPressed: _showSuccessBook,
-                child: Text('Paid using GCash'),
-                style: ElevatedButton.styleFrom(
-                    foregroundColor: Color.fromARGB(255, 255, 228, 109)),
               ),
             ],
           ),

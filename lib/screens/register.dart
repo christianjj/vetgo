@@ -125,8 +125,6 @@ class _RegisterPageState extends State<RegisterPage> {
           : !_emailRegex.hasMatch(_emailController.text)
               ? 'Enter a valid email'
               : null;
-      _usernameError =
-          _usernameController.text.isEmpty ? 'Username is required' : null;
       _passwordError =
           _passwordController.text.isEmpty ? 'Password is required' : null;
       _birthdateError =
@@ -155,38 +153,7 @@ class _RegisterPageState extends State<RegisterPage> {
       _isLoading = true;
     });
     if (_validateFields()) {
-      //   final url = Uri.parse('http://10.0.2.2/VETGO/register.php');
-      //   final response = await http.post(url, body: {
-      //     'FNAME': _fnameController.text,
-      //     'LNAME': _lnameController.text,
-      //     'EMAIL_ADDRESS': _emailController.text,
-      //     'USERNAME': _usernameController.text,
-      //     'PASSWORD': _passwordController.text,
-      //     'BIRTHDATE': _birthdateController.text,
-      //     'CONTACT_NUM': phoneNumberString,
-      //     'ADDRESS': _addressController.text,
-      //   });
-      //
-      //   if (response.statusCode == 200) {
-      //     final responseData = json.decode(response.body);
-      //     if (responseData['success']) {
-      //       print('User registered successfully!');
-      //       Navigator.pushNamed(context, '/homepage');
-      //     } else {
-      //       ScaffoldMessenger.of(context).showSnackBar(
-      //         SnackBar(
-      //             content:
-      //                 Text('Registration failed: ${responseData['message']}')),
-      //       );
-      //     }
-      //   } else {
-      //     print('Error: ${response.statusCode}');
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       const SnackBar(
-      //           content: Text('Registration error. Please try again.')),
-      //     );
-      //   }
-      // }
+
       try {
         // Check if the user email already exists in Authentication
         final List<String> methods = await _auth.fetchSignInMethodsForEmail(
@@ -196,7 +163,7 @@ class _RegisterPageState extends State<RegisterPage> {
         if (methods.isNotEmpty) {
           // Email already exists
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("This email is already registered.")),
+            const SnackBar(content: Text("This email is already registered.")),
           );
           setState(() {
             _isLoading = false; // Stop loading
@@ -205,22 +172,22 @@ class _RegisterPageState extends State<RegisterPage> {
         }
 
         // Check if the mobile number already exists in Firestore
-        final QuerySnapshot result = await _firestore
-            .collection('users')
-            .where('mobileNumber', isEqualTo: phoneNumberString)
-            .get();
+        // final QuerySnapshot result = await _firestore
+        //     .collection('users')
+        //     .where('mobileNumber', isEqualTo: phoneNumberString)
+        //     .get();
 
-        if (result.docs.isNotEmpty) {
-          // Mobile number already exists
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text("This mobile number is already registered.")),
-          );
-          setState(() {
-            _isLoading = false; // Stop loading
-          });
-          return;
-        }
+        // if (result.docs.isNotEmpty) {
+        //   // Mobile number already exists
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     const SnackBar(
+        //         content: Text("This mobile number is already registered.")),
+        //   );
+        //   setState(() {
+        //     _isLoading = false; // Stop loading
+        //   });
+        //   return;
+        // }
         UserCredential userCredential =
             await _auth.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
@@ -231,6 +198,8 @@ class _RegisterPageState extends State<RegisterPage> {
           'fname': _fnameController.text.trim(),
           'lname': _lnameController.text.trim(),
           'mobileNumber': phoneNumberString,
+          'long': _currentLocation?.longitude,
+          'lat': _currentLocation?.latitude,
           'age': _age,
           'address': _addressController.text.trim(),
           'birthdate': _birthdateController.text.trim(),
@@ -240,6 +209,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Registration Successful")),
         );
+        Navigator.pushNamed(context, '/homepage');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),
@@ -332,13 +302,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   errorText: _emailError,
-                ),
-              ),
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  errorText: _usernameError,
                 ),
               ),
               TextField(
@@ -439,43 +402,6 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 20),
 
               // Flutter Map to show current location
-              SizedBox(
-                height: 300, // Set the height of the map
-                child: FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _currentLocation ??
-                        LatLng(0, 0), // Default center if location is null
-                    initialZoom: 13.0,
-                    onTap: (tapPosition, point) {
-                      setState(() {
-                        _currentLocation =
-                            point; // Update current location when tapping the map
-                      });
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      subdomains: ['a', 'b', 'c'],
-                    ),
-                    MarkerLayer(
-                      markers: _currentLocation != null
-                          ? [
-                              Marker(
-                                point: _currentLocation!,
-                                child: Container(
-                                  child: const Icon(Icons.location_pin,
-                                      color: Colors.red),
-                                ),
-                              ),
-                            ]
-                          : [],
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 20),
               SizedBox(height: 20),
 
@@ -518,7 +444,7 @@ class _RegisterPageState extends State<RegisterPage> {
               if (_isLoading)
                 Container(
                   color: Colors.transparent, // Semi-transparent background
-                  child: Center(
+                  child: const Center(
                     child: CircularProgressIndicator(), // Loading spinner
                   ),
                 ),
@@ -532,7 +458,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 elevation: 3,
               ),
                 onPressed: () {
-                  if (!_isLoading) registerUser();
+                  registerUser();
                 },
                 child: const SizedBox(
                   width: double.infinity, // Makes the button expand to full width

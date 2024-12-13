@@ -26,6 +26,8 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   LatLng selectedLocation = LatLng(0, 0);
   bool _isLoading = false;
+  String query = '';
+  List<dynamic> filteredClinics = [];
 
   @override
   void initState() {
@@ -33,35 +35,46 @@ class _HomePageState extends State<HomePage> {
     fetchClinics();
   }
 
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  void _filterClinics(String searchQuery) {
+    setState(() {
+      query = searchQuery;
+      filteredClinics = clinicList.where((clinic) {
+        return clinic['clinicName'].toLowerCase().contains(searchQuery.toLowerCase());
+      }).toList();
+    });
+  }
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print("Location services are disabled.");
+      _showErrorSnackBar('Location services are disabled.');
       return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        print("Location permissions are denied.");
+        _showErrorSnackBar('Location permissions are denied.');
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print("Location permissions are permanently denied.");
+      _showErrorSnackBar('Location permissions are permanently denied.');
       return;
     }
 
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-    selectedLocation = LatLng(position.latitude, position.longitude);
-    _sortClinicsByDistance();
-    _showMapModal();
+    try {
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        selectedLocation = LatLng(position.latitude, position.longitude);
+      });
+      _sortClinicsByDistance();
+      _showMapModal();
+    } catch (e) {
+      _showErrorSnackBar('Error getting location.');
+    }
   }
 
   void _showMapModal() {
@@ -219,14 +232,14 @@ class _HomePageState extends State<HomePage> {
         double distanceA = Geolocator.distanceBetween(
           selectedLocation.latitude,
           selectedLocation.longitude,
-          double.parse(a['latitude']),
-          double.parse(a['longitude']),
+          double.parse(a['latitude'].toString()),
+          double.parse(a['longitude'].toString()),
         );
         double distanceB = Geolocator.distanceBetween(
           selectedLocation.latitude,
           selectedLocation.longitude,
-          double.parse(b['latitude']),
-          double.parse(b['longitude']),
+          double.parse(b['latitude'].toString()),
+          double.parse(b['longitude'].toString()),
         );
         return distanceA.compareTo(distanceB);
       });
@@ -248,76 +261,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _showConfirmationDialog({
-    required String title,
-    required String content,
-    required VoidCallback onConfirm,
-  }) {
-    User? user = _auth.currentUser; // fetch user data.
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: Text('No'),
-            ),
-            TextButton(
-              onPressed: () {
-                onConfirm(); // Execute the confirmation action
-                Navigator.of(context).pop();
-                _auth.signOut(); // for logout user.
-                // Close the dialog
-              },
-              child: Text('Yes'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showLogOutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirm Logout',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Text('Are you sure you want to log out?'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _auth.signOut();
-                // Navigate to login page (adjust route as per your app's navigation)
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
-              child: Text('Logout', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _handleBottomNavigation(int index) {
     switch (index) {
@@ -399,12 +342,14 @@ class _HomePageState extends State<HomePage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.pin_drop, color: Colors.blue),
-                        onPressed: _getCurrentLocation,
+                        icon: Icon(Icons.search, color: Colors.blue),
+                        onPressed: () {
+                          _filterClinics(searchController.text);
+                        },
                       ),
                       IconButton(
-                        icon: Icon(Icons.search, color: Colors.blue),
-                        onPressed: _sortClinicsByDistance,
+                        icon: Icon(Icons.location_on, color: Colors.red),
+                        onPressed: _getCurrentLocation,
                       ),
                     ],
                   ),
@@ -497,6 +442,23 @@ class _HomePageState extends State<HomePage> {
               'Owner: ${clinic['ownerName'] ?? ''}',
               style: TextStyle(color: Colors.grey[600]),
             ),
+            SizedBox(height: 4),
+            Row(
+              children: [
+            Text(
+              '${(Geolocator.distanceBetween(selectedLocation.latitude, selectedLocation.longitude,
+                  double.parse(clinic['latitude'].toString()),
+                  double.parse(clinic['longitude'].toString())) / 1000).toStringAsFixed(2)} km',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+
+            ),
+            Icon(
+              Icons.location_on,
+              color: Colors.red, // Default Google Maps marker color
+              size: 24, // Size of the icon
+            ),
+            ]
+            )
           ],
         ),
         trailing: Icon(Icons.arrow_forward_ios, color: Colors.grey),
