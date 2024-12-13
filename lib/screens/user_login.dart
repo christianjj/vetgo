@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../reusable_widgets/widgets.dart';
+
 class UserLoginPage extends StatefulWidget {
   @override
   _UserLoginPageState createState() => _UserLoginPageState();
@@ -27,18 +29,15 @@ class _UserLoginPageState extends State<UserLoginPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login Successful")),
+        SnackBar(content: Text("Login Successful")),
       );
       determineUserRole();
-
-      // Navigate to the home screen or another screen after login
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => HomeScreen()), // Replace with your HomeScreen
-      // );
     } catch (e) {
+      setState(() {
+        _errorMessage = "Wrong Email or Password";
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Wrong Email or Password")),
+        SnackBar(content: Text(_errorMessage!)),
       );
     } finally {
       setState(() {
@@ -49,7 +48,6 @@ class _UserLoginPageState extends State<UserLoginPage> {
 
   Future<void> determineUserRole() async {
     try {
-      // Get the current user
       User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
@@ -62,7 +60,6 @@ class _UserLoginPageState extends State<UserLoginPage> {
             .get();
 
         if (userSnapshot.exists) {
-          // User exists in `users`
           Map<String, dynamic> userData =
               userSnapshot.data() as Map<String, dynamic>;
           bool isClinic = userData['isClinic'] ?? false;
@@ -79,7 +76,6 @@ class _UserLoginPageState extends State<UserLoginPage> {
               .get();
 
           if (clinicSnapshot.exists) {
-            // User exists in `clinic`
             if (mounted) {
               Navigator.pushNamed(context, '/clinic_admin');
             }
@@ -104,37 +100,41 @@ class _UserLoginPageState extends State<UserLoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text("User Login"),
-        automaticallyImplyLeading: false,
         backgroundColor: Color.fromRGBO(184, 225, 241, 1),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            logoWidgetSmall('assets/logo.png'),
+            const SizedBox(
+              height: 40,
+            ),
             TextField(
               controller: _usernameController,
               decoration: InputDecoration(
                 labelText: 'Username / Email',
                 errorText: _errorMessage,
+                border: OutlineInputBorder(),
               ),
             ),
+            SizedBox(height: 20),
             TextField(
               controller: _passwordController,
               decoration: InputDecoration(
                 labelText: 'Password',
                 errorText: _errorMessage,
+                border: OutlineInputBorder(),
               ),
               obscureText: true,
             ),
             SizedBox(height: 20),
             if (_isLoading)
-              Container(
-                color: Colors.transparent, // Semi-transparent background
-                child: Center(
-                  child: CircularProgressIndicator(), // Loading spinner
-                ),
+              Center(
+                child: CircularProgressIndicator(), // Loading spinner
               ),
+            SizedBox(height: 20),
             ElevatedButton(
               onPressed: _login,
               child: Text('Login'),

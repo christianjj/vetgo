@@ -257,6 +257,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
           'pet_age': petAgeController.text.trim(),
           'service': selectedService,
           'userid': user?.uid,
+          'status' : "Pending",
           'clinic_id': widget.clinicId.toString(),
           'createdAt': DateTime.now(),
         });

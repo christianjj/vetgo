@@ -9,6 +9,15 @@ Image logoWidget(String imageName) {
   );
 }
 
+Image logoWidgetSmall(String imageName) {
+  return Image.asset(
+    imageName,
+    fit: BoxFit.fitWidth,
+    width: 250,
+    height: 250,
+  );
+}
+
 hexStringToColor(String hexColor) {
   hexColor = hexColor.toUpperCase().replaceAll("#", "");
   if (hexColor.length == 6) {

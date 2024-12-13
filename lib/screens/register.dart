@@ -230,7 +230,6 @@ class _RegisterPageState extends State<RegisterPage> {
           'email': _emailController.text.trim(),
           'fname': _fnameController.text.trim(),
           'lname': _lnameController.text.trim(),
-          'lname': _lnameController.text.trim(),
           'mobileNumber': phoneNumberString,
           'age': _age,
           'address': _addressController.text.trim(),

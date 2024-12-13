@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'homepage.dart';
+import 'package:vet_go/screens/homepage.dart';
+
+import 'ProfilePage.dart';
 
 class HistoryPage extends StatefulWidget {
   @override
@@ -74,7 +78,8 @@ class _HistoryPageState extends State<HistoryPage> {
 
       if (userSnapshot.exists) {
         // Assuming the user has a role field (isClinic: true/false)
-        isClinic = userSnapshot.data() != null && userSnapshot['isClinic'] == true;
+        isClinic =
+            userSnapshot.data() != null && userSnapshot['isClinic'] == true;
         // Fetch appointments
         QuerySnapshot appointmentsSnapshot;
 
@@ -112,75 +117,125 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('History'),
-        automaticallyImplyLeading: false,
-        backgroundColor: Color.fromRGBO(184, 225, 241, 1),
-      ),
-      body: appointmentHistory.isEmpty
-          ? Center(child: Text('No appointment history available.'))
-          : ListView.builder(
-              itemCount: appointmentHistory.length,
-              itemBuilder: (context, index) {
-                if(isClinic) {
-                  return ListTile(
-                    title: Text(
-                        '${appointmentHistory[index]['name']} - ${appointmentHistory[index]['appointment_date']}'),
-                    subtitle:
-                    Text('Status: Pending}'),
-                  );
-                }
-                else{
-                  return ListTile(
-                    title: Text(
-                        '${appointmentHistory[index]['clinicName']} - ${appointmentHistory[index]['appointment_date']}'),
-                    subtitle:
-                    Text('Status: "Pending'),
-                  );
-                }
-              },
-            ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        backgroundColor: Color.fromRGBO(184, 225, 241, 1),
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.logout),
-            label: 'Log Out',
-          ),
-        ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => HomePage()),
-              );
-              break;
-            case 2:
-              Navigator.pushNamed(
-                  context, '/');
-                  _showLogOutDialog();
-              break;
-            default:
-              break;
-          }
+    return WillPopScope(
+        onWillPop: () async {
+          // Prevent going back to the login page
+          bool isExitingApp = await _showExitConfirmation(context);
+          return isExitingApp; // Allow exit if user confirms
         },
-      ),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('History'),
+            automaticallyImplyLeading: false,
+            backgroundColor: Color.fromRGBO(184, 225, 241, 1),
+          ),
+          body: appointmentHistory.isEmpty
+              ? const Center(child: Text('No appointment history available.'))
+              : ListView.builder(
+                  itemCount: appointmentHistory.length,
+                  itemBuilder: (context, index) {
+                    if (isClinic) {
+                      return ListTile(
+                        title: Text(
+                            '${appointmentHistory[index]['name']} - ${appointmentHistory[index]['appointment_date']}'),
+                        subtitle: Text(
+                            'Status: ${appointmentHistory[index]['status']}'),
+                      );
+                    } else {
+                      return ListTile(
+                        title: Text(
+                            '${appointmentHistory[index]['clinicName']} - ${appointmentHistory[index]['appointment_date']}'),
+                        subtitle: Text(
+                            'Status: ${appointmentHistory[index]['status']}'),
+                      );
+                    }
+                  },
+                ),
+          bottomNavigationBar: _buildBottomNavigationBar(),
+        )
     );
+  }
+
+  BottomNavigationBar _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      backgroundColor: Color.fromRGBO(184, 225, 241, 1),
+      selectedItemColor: Colors.white,
+      unselectedItemColor: Colors.white70,
+      currentIndex: _currentIndex,
+      type: BottomNavigationBarType.fixed,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_rounded),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.history_rounded),
+          label: 'History',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_rounded),
+          label: 'Profile',
+        ),
+      ],
+      onTap: _handleBottomNavigation,
+    );
+  }
+
+  void _handleBottomNavigation(int index) {
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(),
+          ),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HistoryPage(),
+          ),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(),
+          ),
+        );
+        break;
+    }
+  }
+
+  Future<bool> _showExitConfirmation(BuildContext context) async {
+    return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(
+                'Exit App?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Text('Are you sure you want to exit the app?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () {
+                    SystemNavigator.pop();
+                  },
+                  child: Text('exit', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 }

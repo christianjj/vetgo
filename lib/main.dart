@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:vet_go/screens/ProfilePage.dart';
 import 'package:vet_go/screens/admin_home.dart';
 import 'package:vet_go/screens/clinic_admin.dart';
 import 'package:vet_go/screens/clinic_details.dart';
@@ -40,6 +41,7 @@ class MyApp extends StatelessWidget {
         '/clinics_register': (context) => ClinicRegistrationPage(),
         '/history': (context) => HistoryPage(),
         '/clinic_admin': (context) => ClinicAdminPage(),
+        '/profile': (context) => ProfilePage(),
       },
     );
   }
