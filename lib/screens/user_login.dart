@@ -85,7 +85,7 @@ class _UserLoginPageState extends State<UserLoginPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        SnackBar(content: Text('Wrong Password or Email')),
       );
     } finally {
       setState(() {

@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vet_go/screens/logoutDialog.dart';
 
@@ -369,7 +371,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-  Future<void> _updateAppointmentStatus(int index, String newStatus) async {
+  Future<void> _updateAppointmentStatus(int index, String newStatus, String? notes ) async {
     final appointmentId = appointments[index]['id'];
     print(appointments[index]['id']);
     try {
@@ -381,6 +383,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
       // Update the `status` field in Firestore
       await appointmentDocRef.update({
         'status': newStatus,
+        'notes' : notes
       });
 
       setState(() {
@@ -389,6 +392,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
             .indexWhere((appointment) => appointment['id'] == appointmentId);
         if (index != -1) {
           appointments[index]['status'] = newStatus;
+          appointments[index]['notes'] = notes;
         }
       });
 
@@ -399,32 +403,258 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   }
 
   void _viewAppointmentDetails(int index) {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        final appointment = appointments[index];
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Appointment Details',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildAppointmentDetailRow('Name', appointment['name']),
+              _buildAppointmentDetailRow(
+                  'Contact Number', appointment['contact_number']),
+              _buildAppointmentDetailRow(
+                  'Appointment Date', appointment['appointment_date']),
+              _buildAppointmentDetailRow('Status', appointment['status']),
+              _buildAppointmentDetailRow('Pet Name', appointment['pet_name']),
+              _buildAppointmentDetailRow('Pet Breed', appointment['pet_breed']),
+              _buildAppointmentDetailRow('Pet Age', appointment['pet_age']),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAppointmentDetailRow(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title: ',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Build the appointments list
+  Widget _buildAppointmentsList() {
+    appointments.sort((a, b) {
+      DateTime dateA = (a['createdAt'] as Timestamp).toDate();
+      DateTime dateB = (b['createdAt'] as Timestamp).toDate();
+      return dateB.compareTo(dateA); // Newest to oldest
+    });
+    return RefreshIndicator.adaptive(
+      onRefresh: _fetchAppointments,
+      child: appointments.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No pending appointments available',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Check back later or schedule a new appointment',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              itemCount: appointments.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final appointment = appointments[index];
+
+                return Dismissible(
+                  key: Key(appointment['id'].toString()),
+                  background: Container(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (direction) {
+                    // Implement delete logic
+                  },
+                  child: ListTile(
+                    title: Text(
+                      appointment['name'],
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          overflow: TextOverflow.ellipsis,
+
+                          ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appointment['appointment_date'],
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        _buildStatusChip(context, appointment['status']),
+                        const SizedBox(height: 4),
+                        Text(
+                          appointment['notes'] ?? '',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    trailing:
+                        _buildAppointmentActions(context, appointment, index),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+// Helper method to create status chips
+  Widget _buildStatusChip(BuildContext context, String status) {
+    Color textColor;
+
+    switch (status) {
+      case 'Pending':
+        textColor = Colors.orange;
+        break;
+      case 'Approve':
+        textColor = Colors.green;
+        break;
+      case 'Completed':
+        textColor = Colors.blue;
+        break;
+      default:
+        textColor = Colors.red;
+    }
+
+    return Text(
+      status,
+      style: TextStyle(
+        color: textColor,
+        fontSize: 14, // Optional: Adjust font size
+        fontWeight: FontWeight.w600, // Optional: Adjust weight
+      ),
+    );
+  }
+// Helper method to create action buttons based on appointment status
+
+  void _showRejectReasonDialog(BuildContext context, Map<String, dynamic> appointment, int index) {
+    final TextEditingController _reasonController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Appointment Details'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Text('Name: ${appointments[index]['name']}'),
-                Text(
-                    'Contact Number: ${appointments[index]['contact_number']}'),
-                Text(
-                    'Appointment Date: ${appointments[index]['appointment_date']}'),
-                Text('Status: ${appointments[index]['status']}'),
-                Text('Pet Name: ${appointments[index]['pet_name']}'),
-                Text('Pet Breed: ${appointments[index]['pet_breed']}'),
-                Text('Pet Age: ${appointments[index]['pet_age']}'),
-              ],
-            ),
+          title: const Text('Reject Appointment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Please enter the reason for rejecting the appointment:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close the dialog
               },
-              child: Text('Close'),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final reason = _reasonController.text.trim();
+                if (reason.isNotEmpty) {
+                  // Handle the rejection logic
+                  _updateAppointmentStatus(index, 'Reject', 'Notes: $reason');
+                  Navigator.of(context).pop(); // Close the dialog
+                } else {
+                  // Optionally show an error if the input is empty
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reason cannot be empty')),
+                  );
+                }
+              },
+              child: const Text('Reject'),
             ),
           ],
         );
@@ -432,122 +662,54 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-// Build the appointments list
-  Widget _buildAppointmentsList() {
-    return RefreshIndicator(
-        onRefresh: _fetchAppointments,
-        child: appointments.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.info_outline, size: 50, color: Colors.grey[400]),
-                    SizedBox(height: 10),
-                    Text(
-                      'No pending appointments available.',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                itemCount: appointments.length,
-                itemBuilder: (context, index) {
-                  final appointment = appointments[index];
-
-                  return Card(
-                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ListTile(
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                      title: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${appointment['name']}',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            '${appointment['appointment_date']}',
-                            style: TextStyle(
-                                fontSize: 14, color: Colors.grey[600]),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Status: ${appointment['status']}',
-                            style: TextStyle(
-                                fontSize: 14, color: Colors.grey[600]),
-                          ),
-                          SizedBox(height: 8),
-                        ],
-                      ),
-                      trailing: appointment['status'] == 'Pending'
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ElevatedButton(
-                                  onPressed: () => _updateAppointmentStatus(
-                                      index, 'Approve'),
-                                  style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.green),
-                                  child: Text('Approve'),
-                                ),
-                                SizedBox(width: 4),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      _viewAppointmentDetails(index),
-                                  style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.yellow[700]),
-                                  child: Text('View'),
-                                ),
-                                SizedBox(width: 4),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      _updateAppointmentStatus(index, 'Reject'),
-                                  style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.red),
-                                  child: Text('Reject'),
-                                ),
-                              ],
-                            )
-                          : appointment['status'] == 'Approve'
-                              ? Row(mainAxisSize: MainAxisSize.min, children: [
-                                  ElevatedButton(
-                                    onPressed: () => _updateAppointmentStatus(
-                                        index, 'Completed'),
-                                    style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.blue,
-                                    ),
-                                    child: Text('Complete'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => _updateAppointmentStatus(
-                                        index, 'No-Show'),
-                                    style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.blue,
-                                    ),
-                                    child: Text('No-Show'),
-                                  ),
-                                ])
-                              : ElevatedButton(
-                                  onPressed: () =>
-                                      _viewAppointmentDetails(index),
-                                  style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.yellow[700]),
-                                  child: Text('View Details'),
-                                ),
-                    ),
-                  );
-                },
-              ));
+  Widget _buildAppointmentActions(
+      BuildContext context, Map<String, dynamic> appointment, int index) {
+    switch (appointment['status']) {
+      case 'Pending':
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.tonal(
+              onPressed: () => _updateAppointmentStatus(index, 'Approve', ''),
+              child: const Text('Approve', style: TextStyle(fontSize: 10),),
+            ),
+            const SizedBox(width: 4),
+            FilledButton.tonal(
+              onPressed: () => _showRejectReasonDialog(context,appointment, index),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.errorContainer,
+                foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+              child: const Text('Reject',style: TextStyle(fontSize: 10)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _viewAppointmentDetails(index),
+            ),
+            const SizedBox(width: 4),
+          ],
+        );
+      case 'Approve':
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.tonal(
+              onPressed: () => _updateAppointmentStatus(index, 'Completed', ''),
+              child: const Text('Complete',style: TextStyle(fontSize: 10)),
+            ),
+            const SizedBox(width: 4),
+            FilledButton.tonal(
+              onPressed: () => _updateAppointmentStatus(index, 'No-Show' , ''),
+              child: const Text('No-Show',style: TextStyle(fontSize: 10)),
+            ),
+          ],
+        );
+      default:
+        return IconButton(
+          icon: const Icon(Icons.more_vert),
+          onPressed: () => _viewAppointmentDetails(index),
+        );
+    }
   }
 
   Widget _buildServicesList() {
@@ -577,7 +739,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
-                  leading: CircleAvatar(
+                  leading: const CircleAvatar(
                     backgroundColor: Colors.blueAccent,
                     child: Icon(
                       Icons.design_services,
@@ -657,13 +819,13 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(clinicName),
-        backgroundColor: Color.fromRGBO(184, 225, 241, 1),
+        backgroundColor: const Color.fromRGBO(184, 225, 241, 1),
         automaticallyImplyLeading: false,
       ),
       body:
           _currentIndex == 0 ? _buildAppointmentsList() : _buildServicesList(),
       bottomNavigationBar: BottomNavigationBar(
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.book),
             label: 'Appointments',

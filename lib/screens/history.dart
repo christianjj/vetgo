@@ -26,65 +26,23 @@ class _HistoryPageState extends State<HistoryPage> {
     fetchAppointmentsBasedOnRole();
   }
 
-  Future<void> _fetchAppointmentHistory() async {
-    final response = await http
-        .get(Uri.parse('http://10.0.2.2/VETGO/fetch_appointments.php'));
-
-    if (response.statusCode == 200) {
-      List<dynamic> fetchedHistory = json.decode(response.body);
-      setState(() {
-        appointmentHistory = fetchedHistory
-            .map((appointment) => Map<String, dynamic>.from(appointment))
-            .toList();
-      });
-    } else {
-      print("Failed to load appointment history: ${response.statusCode}");
-    }
-  }
-
-  void _showLogOutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Log Out'),
-          content: Text('Thank you for using Vetgo. Logged Out successfully!'),
-          actions: <Widget>[
-            TextButton(
-              child: Text('OK'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Future<void> fetchAppointmentsBasedOnRole() async {
-    // Get the current user
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser != null) {
-      // Get the document ID of the current user
       String userDocId = currentUser.uid;
-
-      // Check if the user is a clinic or not
       DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(userDocId)
           .get();
 
       if (userSnapshot.exists) {
-        // Assuming the user has a role field (isClinic: true/false)
         isClinic =
             userSnapshot.data() != null && userSnapshot['isClinic'] == true;
-        // Fetch appointments
         QuerySnapshot appointmentsSnapshot;
 
         if (isClinic) {
-          // Query for clinics
           appointmentsSnapshot = await FirebaseFirestore.instance
               .collection('appointments')
               .where('clinic_id', isEqualTo: userDocId)
@@ -97,7 +55,6 @@ class _HistoryPageState extends State<HistoryPage> {
               .get();
         }
 
-        // Print the results
         if (appointmentsSnapshot.docs.isNotEmpty) {
           setState(() {
             appointmentHistory = appointmentsSnapshot.docs
@@ -117,6 +74,13 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Sort the appointmentHistory by created_date (Timestamp) in descending order
+    appointmentHistory.sort((a, b) {
+      DateTime dateA = (a['createdAt'] as Timestamp).toDate();
+      DateTime dateB = (b['createdAt'] as Timestamp).toDate();
+      return dateB.compareTo(dateA); // Sorts in descending order
+    });
+
     return WillPopScope(
       onWillPop: () async {
         bool isExitingApp = await _showExitConfirmation(context);
