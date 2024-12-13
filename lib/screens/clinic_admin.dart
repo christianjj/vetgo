@@ -14,6 +14,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   List<Map<String, dynamic>> appointments = [];
   List<Map<String, dynamic>> services = [];
   User? currentUser = FirebaseAuth.instance.currentUser;
+  String clinicName = "";
 
   //String clinicId = '1'; // Set the clinic ID
   int _currentIndex = 0; // To track the selected tab (Appointments or Services)
@@ -46,6 +47,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
           setState(() {
             services =
                 List<Map<String, dynamic>>.from(clinicData['Services'] ?? []);
+            clinicName = clinicData['clinicName'] ?? "Default Clinic Name";
           });
         } else {
           print("Clinic not found.");
@@ -57,20 +59,6 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   }
 
   Future<void> _fetchAppointments() async {
-    // final response = await http.get(Uri.parse(
-    //     'http://10.0.2.2/VETGO/fetch_appointments.php?clinic_id=$clinicId'));
-    //
-    // if (response.statusCode == 200) {
-    //   List<dynamic> fetchedAppointments = json.decode(response.body);
-    //   setState(() {
-    //     appointments = fetchedAppointments
-    //         .where((appointment) => appointment['status'] == 'Pending')
-    //         .map((appointment) => Map<String, dynamic>.from(appointment))
-    //         .toList();
-    //   });
-    // } else {
-    //   print("Failed to load appointments: ${response.statusCode}");
-    // }
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser != null) {
@@ -104,23 +92,6 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     // Query for clinics
   }
 
-// Fetch services from the backend
-//   Future<void> _fetchServices() async {
-//     final response =
-//     await http.get(Uri.parse('http://10.0.2.2/VETGO/fetch_services.php'));
-//
-//     if (response.statusCode == 200) {
-//       List<dynamic> fetchedServices = json.decode(response.body);
-//       setState(() {
-//         services = fetchedServices
-//             .map((service) => Map<String, dynamic>.from(service))
-//             .toList();
-//       });
-//     } else {
-//       print("Failed to load services: ${response.statusCode}");
-//     }
-//   }
-
   Future<void> addServiceToClinic(
       String clinicId, Map<String, dynamic> newService) async {
     try {
@@ -138,22 +109,6 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     }
   }
 
-// Add a service
-//   Future<void> _addService(String serviceName) async {
-//     final response = await http.post(
-//       Uri.parse('http://10.0.2.2/VETGO/add_service.php'),
-//       body: {
-//         'service_name': serviceName,
-//       },
-//     );
-//     if (response.statusCode == 200) {
-//       _fetchServices(); // Reload services after adding
-//     } else {
-//       print('Failed to add service: ${response.statusCode}');
-//     }
-//   }
-
-// Edit a service
   Future<void> _editService(
       String serviceId, String newServiceName, String newPrice) async {
     print(newPrice);
@@ -237,7 +192,6 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     }
   }
 
-// Show dialog to add a service
   void _showAddServiceDialog() {
     String newServiceName = '';
     String newServicePrice = '';
@@ -415,26 +369,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
-// Update appointment status (Approve/Reject)
   Future<void> _updateAppointmentStatus(int index, String newStatus) async {
-    // final appointmentId = appointments[index]['id']; // Get the appointment ID
-    //
-    // final response = await http.post(
-    //   Uri.parse('http://10.0.2.2/VETGO/update_appointment_status.php'),
-    //   body: {
-    //     'appointment_id': appointmentId.toString(),
-    //     'status': newStatus,
-    //   },
-    // );
-    //
-    // if (response.statusCode == 200) {
-    //   setState(() {
-    //     appointments[index]['status'] = newStatus; // Update the status locally
-    //   });
-    //   _fetchAppointments(); // Optionally, refetch the updated appointments list
-    // } else {
-    //   print('Failed to update appointment status: ${response.statusCode}');
-    // }
     final appointmentId = appointments[index]['id'];
     print(appointments[index]['id']);
     try {
@@ -501,117 +436,162 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   Widget _buildAppointmentsList() {
     return appointments.isEmpty
         ? Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.info_outline, size: 50, color: Colors.grey[400]),
-          SizedBox(height: 10),
-          Text(
-            'No pending appointments available.',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.info_outline, size: 50, color: Colors.grey[400]),
+                SizedBox(height: 10),
+                Text(
+                  'No pending appointments available.',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    )
+          )
         : ListView.builder(
-      itemCount: appointments.length,
-      itemBuilder: (context, index) {
-        final appointment = appointments[index];
+            itemCount: appointments.length,
+            itemBuilder: (context, index) {
+              final appointment = appointments[index];
 
-        return Card(
-          margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ListTile(
-            contentPadding:
-            EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${appointment['name']}',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+              return Card(
+                margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  '${appointment['appointment_date']}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                child: ListTile(
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${appointment['name']}',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '${appointment['appointment_date']}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Status: ${appointment['status']}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 8),
+                    ],
+                  ),
+                  trailing: appointment['status'] == 'Pending'
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () =>
+                                  _updateAppointmentStatus(index, 'Approve'),
+                              style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.green),
+                              child: Text('Approve'),
+                            ),
+                            SizedBox(width: 4),
+                            ElevatedButton(
+                              onPressed: () => _viewAppointmentDetails(index),
+                              style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.yellow[700]),
+                              child: Text('View'),
+                            ),
+                            SizedBox(width: 4),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  _updateAppointmentStatus(index, 'Reject'),
+                              style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.red),
+                              child: Text('Reject'),
+                            ),
+                          ],
+                        )
+                      : ElevatedButton(
+                          onPressed: () => _viewAppointmentDetails(index),
+                          style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.yellow[700]),
+                          child: Text('View Details'),
+                        ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  'Status: ${appointment['status']}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                SizedBox(height: 8),
-              ],
-            ),
-            trailing: appointment['status'] == 'Pending'
-                ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ElevatedButton(
-                  onPressed: () =>
-                      _updateAppointmentStatus(index, 'Approve'),
-                  style: ElevatedButton.styleFrom(foregroundColor: Colors.green),
-                  child: Text('Approve'),
-                ),
-                SizedBox(width: 4),
-                ElevatedButton(
-                  onPressed: () => _viewAppointmentDetails(index),
-                  style: ElevatedButton.styleFrom(foregroundColor: Colors.yellow[700]),
-                  child: Text('View'),
-                ),
-                SizedBox(width: 4),
-                ElevatedButton(
-                  onPressed: () =>
-                      _updateAppointmentStatus(index, 'Reject'),
-                  style: ElevatedButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('Reject'),
-                ),
-              ],
-            )
-                : ElevatedButton(
-              onPressed: () => _viewAppointmentDetails(index),
-              style: ElevatedButton.styleFrom(foregroundColor: Colors.yellow[700]),
-              child: Text('View Details'),
-            ),
-          ),
-        );
-      },
-    );
+              );
+            },
+          );
   }
 
-// Build the services list
   Widget _buildServicesList() {
     return services.isEmpty
-        ? Center(child: Text('No services available.'))
-        : ListView.builder(
+        ? const Center(
+            child: Text(
+              'No services available.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          )
+        : ListView.separated(
             itemCount: services.length,
+            separatorBuilder: (context, index) => const Divider(
+              thickness: 1,
+              height: 1,
+              color: Colors.grey,
+            ),
             itemBuilder: (context, index) {
-              return ListTile(
-                title: Text("${services[index]['serviceName']}",
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Price: Php ${services[index]['servicePrice']}"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () => _showEditServiceDialog(services[index]),
+              final service = services[index];
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blueAccent,
+                    child: Icon(
+                      Icons.design_services,
+                      color: Colors.white,
                     ),
-                    IconButton(
-                        icon: Icon(Icons.delete),
-                        onPressed: () {
-                          String serviceId = services[index]['serviceId'];
-                          _showDeleteConfirmationDialog(serviceId);
-                        } // Pass the service ID
+                  ),
+                  title: Text(
+                    service['serviceName'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "Price: Php ${service['servicePrice']}",
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.blueAccent,
                         ),
-                  ],
+                        onPressed: () => _showEditServiceDialog(service),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.redAccent,
+                        ),
+                        onPressed: () {
+                          String serviceId = service['serviceId'];
+                          _showDeleteConfirmationDialog(serviceId);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -651,7 +631,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Clinic Admin Dashboard'),
+        title: Text(clinicName),
         backgroundColor: Color.fromRGBO(184, 225, 241, 1),
         automaticallyImplyLeading: false,
       ),
@@ -679,7 +659,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
               // Handle logout logic here
               _auth.signOut();
               Navigator.pushNamed(context, '/');
-            });// Show logout confirmation dialog
+            }); // Show logout confirmation dialog
           } else {
             setState(() {
               _currentIndex = index; // Change the tab
