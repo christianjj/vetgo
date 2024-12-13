@@ -522,11 +522,24 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: CircularProgressIndicator(), // Loading spinner
                   ),
                 ),
-              ElevatedButton(
+
+              ElevatedButton(style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 3,
+              ),
                 onPressed: () {
                   if (!_isLoading) registerUser();
                 },
-                child: const Text('Register'),
+                child: const SizedBox(
+                  width: double.infinity, // Makes the button expand to full width
+                  child: Center(
+                    child: Text('Register'), // Centers the text
+                  ),
+                ),
               ),
 
             ],

@@ -29,13 +29,10 @@ class _UserLoginPageState extends State<UserLoginPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login Successful")),
+        const SnackBar(content: Text("Login Successful")),
       );
       determineUserRole();
     } catch (e) {
-      setState(() {
-        _errorMessage = "Wrong Email or Password";
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_errorMessage!)),
       );
@@ -107,7 +104,7 @@ class _UserLoginPageState extends State<UserLoginPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            logoWidgetSmall('assets/logo.png'),
+            logoWidgetSmall('assets/banner.gif'),
             const SizedBox(
               height: 40,
             ),
@@ -136,8 +133,21 @@ class _UserLoginPageState extends State<UserLoginPage> {
               ),
             SizedBox(height: 20),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 3,
+              ),
               onPressed: _login,
-              child: Text('Login'),
+              child: SizedBox(
+                width: double.infinity, // Makes the button expand to full width
+                child: Center(
+                  child: Text('Login'), // Centers the text
+                ),
+              ),
             ),
           ],
         ),

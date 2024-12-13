@@ -12,9 +12,9 @@ Image logoWidget(String imageName) {
 Image logoWidgetSmall(String imageName) {
   return Image.asset(
     imageName,
-    fit: BoxFit.fitWidth,
-    width: 250,
-    height: 250,
+    fit: BoxFit.fill,
+    width: double.maxFinite,
+    height: 150,
   );
 }
 

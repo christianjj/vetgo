@@ -310,7 +310,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
           value; // You might need to handle file uploads differently
     });
     bool allFilesUploaded =
-    uploadedFiles.values.every((filePath) => filePath != null);
+        uploadedFiles.values.every((filePath) => filePath != null);
     if (_formKey.currentState!.validate()) {
       // Check if all required files are uploaded
       if (!allFilesUploaded) {
@@ -318,8 +318,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
           SnackBar(content: Text('Please upload all required documents')),
         );
         return;
-      }
-      else{
+      } else {
         setState(() {
           _isLoading = false;
         });
@@ -334,7 +333,10 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
         );
 
         // Add shop details to Firestore
-        await _firestore.collection('clinic').doc(userCredential.user?.uid).set({
+        await _firestore
+            .collection('clinic')
+            .doc(userCredential.user?.uid)
+            .set({
           'ownerName': ownerNameController.text.trim(),
           'ownerId': ownerIdController.text.trim(),
           'clinicName': clinicNameController.text.trim(),
@@ -421,8 +423,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
       //     SnackBar(content: Text('Failed to register clinic!')),
       //   );
       // }
-    }
-    else{
+    } else {
       setState(() {
         _isLoading = false;
       });
@@ -591,11 +592,21 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
                   )
                 ]),
               ElevatedButton(
-                onPressed: _submitForm,
-                child: Text('Register Clinic'),
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 15),
-                  textStyle: TextStyle(fontSize: 16),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 3,
+                ),
+                onPressed: _submitForm,
+                child: const SizedBox(
+                  width: double.infinity,
+                  // Makes the button expand to full width
+                  child: Center(
+                    child: Text('Register Clinic'), // Centers the text
+                  ),
                 ),
               ),
             ],
