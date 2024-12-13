@@ -29,13 +29,10 @@ class _UserLoginPageState extends State<UserLoginPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login Successful")),
+        const SnackBar(content: Text("Login Successful")),
       );
       determineUserRole();
     } catch (e) {
-      setState(() {
-        _errorMessage = "Wrong Email or Password";
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_errorMessage!)),
       );
