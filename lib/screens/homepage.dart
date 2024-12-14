@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
     fetchClinics();
   }
 
@@ -71,7 +72,6 @@ class _HomePageState extends State<HomePage> {
         selectedLocation = gmaps.LatLng(position.latitude, position.longitude);
       });
       _sortClinicsByDistance();
-      _showMapModal();
     } catch (e) {
       _showErrorSnackBar('Error getting location.');
     }
@@ -247,6 +247,7 @@ class _HomePageState extends State<HomePage> {
         data['id'] = doc.id; // Add Document ID to the data
         return data;
       }).toList();
+      _getCurrentLocation();
     });
   }
 

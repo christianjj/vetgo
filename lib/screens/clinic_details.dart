@@ -84,7 +84,7 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
           setState(() {
             routePoints = polylineCoordinates;
           });
-
+          print(data['routes'] as List);
           // Adjust the camera to show the entire route
           LatLngBounds bounds = LatLngBounds(
             southwest: LatLng(

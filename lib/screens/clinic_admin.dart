@@ -618,6 +618,41 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
+  void _showApproveDialog(BuildContext context, Map<String, dynamic> appointment, int index) {
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Approve Appointment'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Are you sure you want to confirm this appointment?'),
+              SizedBox(height: 16),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                  _updateAppointmentStatus(index, 'Approve', '');
+                  Navigator.of(context).pop(); // Close the dialog
+                }
+              ,
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildAppointmentActions(
       BuildContext context, Map<String, dynamic> appointment, int index) {
     switch (appointment['status']) {
@@ -626,7 +661,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             FilledButton.tonal(
-              onPressed: () => _updateAppointmentStatus(index, 'Approve', ''),
+              onPressed: () => _showApproveDialog(context,appointment,index),
               child: const Text('Approve', style: TextStyle(fontSize: 10),),
             ),
             const SizedBox(width: 4),
