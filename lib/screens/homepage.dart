@@ -173,8 +173,21 @@ class _HomePageState extends State<HomePage> {
                   ),
                   SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context, selectedLocation);
+                    onPressed: () async {
+                      List<Placemark> placemarks =
+                      await placemarkFromCoordinates(
+                        selectedLocation.latitude,
+                        selectedLocation.longitude,
+                      );
+                      Placemark place = placemarks[0];
+                      String address =
+                          "${place.street}, ${place.locality}, ${place.country}";
+
+                      setState(() {
+                        searchController.text = address;
+                      });
+
+                      Navigator.pop(context);
                     },
                     child: Text('Confirm Location'),
                     style: ElevatedButton.styleFrom(
