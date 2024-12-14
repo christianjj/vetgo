@@ -3,11 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
-
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'ProfilePage.dart';
 import 'clinic_details.dart';
 import 'history.dart';
@@ -24,10 +23,11 @@ class _HomePageState extends State<HomePage> {
   TextEditingController searchController = TextEditingController();
   TextEditingController areaSearchController = TextEditingController();
   int _currentIndex = 0;
-  LatLng selectedLocation = LatLng(0, 0);
+  gmaps.LatLng selectedLocation = gmaps.LatLng(0, 0);
   bool _isLoading = false;
   String query = '';
   List<dynamic> filteredClinics = [];
+  late GoogleMapController _googleMapController;
 
   @override
   void initState() {
@@ -68,7 +68,7 @@ class _HomePageState extends State<HomePage> {
     try {
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       setState(() {
-        selectedLocation = LatLng(position.latitude, position.longitude);
+        selectedLocation = gmaps.LatLng(position.latitude, position.longitude);
       });
       _sortClinicsByDistance();
       _showMapModal();
@@ -78,8 +78,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showMapModal() {
-    final MapController mapController = MapController();
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -94,47 +92,37 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Text(
-                    'Select Location',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  Center(
+                    child: Text(
+                      'Select Location',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   SizedBox(height: 16),
                   Expanded(
-                    child: FlutterMap(
-                      mapController: mapController,
-                      options: MapOptions(
-                        initialCenter: selectedLocation,
-                        initialZoom: 13.0,
-                        onTap: (tapPosition, LatLng newPosition) {
-                          setModalState(() {
-                            selectedLocation = newPosition;
-                          });
-                        },
+                    child: GoogleMap(
+                      mapType: MapType.normal,
+                      initialCameraPosition: CameraPosition(
+                        target: selectedLocation,
+                        zoom: 13.0,
                       ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                          subdomains: ['a', 'b', 'c'],
+                      onMapCreated: (GoogleMapController controller) {
+                        _googleMapController = controller;
+                      },
+                      markers: {
+                        Marker(
+                          markerId: MarkerId('selected-location'), // Unique ID for the marker
+                          position: selectedLocation, // Marker position
                         ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: selectedLocation,
-                              width: 80.0,
-                              height: 80.0,
-                              child: Icon(
-                                Icons.location_pin,
-                                color: Colors.red,
-                                size: 40.0,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      },
+                      onTap: (LatLng newPosition) {
+                        setModalState(() {
+                          selectedLocation = newPosition;
+                        });
+                      },
                     ),
                   ),
                   SizedBox(height: 16),
@@ -155,16 +143,23 @@ class _HomePageState extends State<HomePage> {
                       IconButton(
                         icon: Icon(Icons.search, color: Colors.blue),
                         onPressed: () async {
+                          String query = areaSearchController.text.trim();
+                          if (query.isEmpty) {
+                            _showErrorSnackBar('Search query cannot be empty.');
+                            return;
+                          }
                           try {
-                            List<Location> locations =
-                                await locationFromAddress(
-                                    areaSearchController.text);
-
+                            List<Location> locations = await locationFromAddress(query);
                             if (locations.isNotEmpty) {
+                              LatLng newLocation = LatLng(
+                                locations[0].latitude,
+                                locations[0].longitude,
+                              );
                               setModalState(() {
-                                selectedLocation = LatLng(locations[0].latitude,
-                                    locations[0].longitude);
-                                mapController.move(selectedLocation, 13.0);
+                                selectedLocation = newLocation;
+                                _googleMapController.animateCamera(
+                                  CameraUpdate.newLatLngZoom(newLocation, 13.0),
+                                );
                               });
                             } else {
                               _showErrorSnackBar('No location found.');
@@ -178,34 +173,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                   SizedBox(height: 16),
                   ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context, selectedLocation);
+                    },
+                    child: Text('Confirm Location'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: () async {
-                      try {
-                        List<Placemark> placemarks =
-                            await placemarkFromCoordinates(
-                          selectedLocation.latitude,
-                          selectedLocation.longitude,
-                        );
-
-                        Placemark place = placemarks[0];
-                        String address =
-                            "${place.street}, ${place.locality}, ${place.country}";
-
-                        setState(() {
-                          searchController.text = address;
-                        });
-
-                        Navigator.pop(context);
-                      } catch (e) {
-                        _showErrorSnackBar('Unable to get address details.');
-                      }
-                    },
-                    child: Text('CONFIRM'),
                   ),
                 ],
               ),
@@ -491,7 +467,7 @@ class _HomePageState extends State<HomePage> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.history_rounded),
-          label: 'History',
+          label: 'Booking',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_rounded),

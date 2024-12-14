@@ -1,8 +1,8 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -19,39 +19,49 @@ class ClinicDetailsPage extends StatefulWidget {
 }
 
 class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
+  late GoogleMapController _mapController;
+  Set<Polyline> _polylines = {};
+  String _googleApiKey = "AIzaSyAkCpNMB4Q_JuZzsQ51qiBXcQeiNRScmSQ";
+
   LatLng clinicLocation = LatLng(0, 0);
   double distance = 0.0;
   List<LatLng> routePoints = [];
   String transportationMode = 'driving';
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _getClinicCoordinates();
+    _initializeClinicData();
+  }
+
+  Future<void> _initializeClinicData() async {
+    print('clinic location ${widget.clinic}');
+    try {
+      await _getClinicCoordinates();
+      if (clinicLocation.latitude != 0 && clinicLocation.longitude != 0) {
+        await _getRoute(widget.userLocation, clinicLocation);
+      }
+    } catch (e) {
+      print("Error during initialization: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> _getClinicCoordinates() async {
     try {
-      List<Location> locations =
-          await locationFromAddress(widget.clinic['clinicAddress']);
-      if (locations.isNotEmpty) {
-        setState(() {
-          clinicLocation =
-              LatLng(locations[0].latitude, locations[0].longitude);
-          distance = Geolocator.distanceBetween(
-                widget.userLocation.latitude,
-                widget.userLocation.longitude,
-                clinicLocation.latitude,
-                clinicLocation.longitude,
-              ) /
-              1000;
-        });
-        // Fetch the route points after clinicLocation is set
-        await _getRoute(widget.userLocation, clinicLocation);
-      } else {
-        print(
-            "No locations found for the address: ${widget.clinic['clinicAddress']}");
-      }
+      // Simulated geocoding result for the clinic address
+      clinicLocation = LatLng(widget.clinic['latitude'], widget.clinic['longitude']); // Replace with real geocoding
+      distance = Geolocator.distanceBetween(
+        widget.userLocation.latitude,
+        widget.userLocation.longitude,
+        clinicLocation.latitude,
+        clinicLocation.longitude,
+      ) /
+          1000;
     } catch (e) {
       print("Error fetching clinic coordinates: $e");
     }
@@ -59,37 +69,115 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
 
   Future<void> _getRoute(LatLng start, LatLng destination) async {
     final url =
-        'http://router.project-osrm.org/route/v1/$transportationMode/${start.longitude},${start.latitude};${destination.longitude},${destination.latitude}?overview=full';
+        "https://maps.googleapis.com/maps/api/directions/json?origin=${start.latitude},${start.longitude}&destination=${destination.latitude},${destination.longitude}&mode=$transportationMode&key=$_googleApiKey";
 
-    print("Fetching route from URL: $url");
+    try {
+      final response = await http.get(Uri.parse(url));
 
-    final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print("Response data: $data");
+        if ((data['routes'] as List).isNotEmpty) {
+          final points = data['routes'][0]['overview_polyline']['points'];
+          final polylineCoordinates = _decodePolyline(points);
 
-      if (data['routes'].isNotEmpty) {
-        final route = data['routes'][0]['geometry']['coordinates'];
-        setState(() {
-          routePoints =
-              route.map<LatLng>((point) => LatLng(point[1], point[0])).toList();
-          print("Route points: $routePoints");
-        });
+          setState(() {
+            routePoints = polylineCoordinates;
+          });
+
+          // Adjust the camera to show the entire route
+          LatLngBounds bounds = LatLngBounds(
+            southwest: LatLng(
+              min(widget.userLocation.latitude, clinicLocation.latitude),
+              min(widget.userLocation.longitude, clinicLocation.longitude),
+            ),
+            northeast: LatLng(
+              max(widget.userLocation.latitude, clinicLocation.latitude),
+              max(widget.userLocation.longitude, clinicLocation.longitude),
+            ),
+          );
+
+          _mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+
+        } else {
+          print("No routes found");
+        }
       } else {
-        print("No routes found.");
+        print("Failed to fetch directions: ${response.body}");
       }
-    } else {
-      print("Failed to get route: ${response.statusCode}");
+    } catch (e) {
+      print("Error fetching route: $e");
     }
   }
 
-  void _setTransportationMode(String mode) {
-    setState(() {
-      transportationMode = mode;
-    });
-    _getRoute(widget.userLocation, clinicLocation);
-  }
+
+  double _calculateDistance(lat1, lon1, lat2, lon2) {
+        const double radiusOfEarthKm = 6371;
+        double dLat = _degreeToRadian(lat2 - lat1);
+        double dLon = _degreeToRadian(lon2 - lon1);
+
+        double a = (sin(dLat / 2) * sin(dLat / 2)) +
+            cos(_degreeToRadian(lat1)) *
+                cos(_degreeToRadian(lat2)) *
+                sin(dLon / 2) *
+                sin(dLon / 2);
+
+        double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+        return radiusOfEarthKm * c;
+      }
+
+      double _degreeToRadian(degree) {
+        return degree * pi / 180;
+      }
+
+      List<LatLng> _decodePolyline(String encoded) {
+        List<LatLng> polylineCoordinates = [];
+        int index = 0,
+            len = encoded.length;
+        int lat = 0,
+            lng = 0;
+
+        while (index < len) {
+          int shift = 0,
+              result = 0;
+          int b;
+          do {
+            b = encoded.codeUnitAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+          } while (b >= 0x20);
+          int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+          lat += dlat;
+
+          shift = 0;
+          result = 0;
+          do {
+            b = encoded.codeUnitAt(index++) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+          } while (b >= 0x20);
+          int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+          lng += dlng;
+
+          polylineCoordinates.add(LatLng(lat / 1E5, lng / 1E5));
+        }
+
+        return polylineCoordinates;
+      }
+
+
+    void _setTransportationMode(String mode) {
+      setState(() {
+        transportationMode = mode;
+        isLoading = true;
+      });
+      print('${widget.userLocation} + ${clinicLocation}');
+      _getRoute(widget.userLocation, clinicLocation).then((_) {
+        setState(() {
+          isLoading = false;
+        });
+      });
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +186,9 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
         title: Text(widget.clinic['clinicName'] ?? ''),
         backgroundColor: Color.fromRGBO(184, 225, 241, 1),
       ),
-      body: Padding(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,15 +199,9 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
             ),
             SizedBox(height: 16),
             Text(
-              'Address: ${widget.clinic['clinicAddress'] ?? ''}',
+              'Distance: ${distance.toStringAsFixed(2)} km',
               style: TextStyle(fontSize: 18),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Contact: ${widget.clinic['clinic_contact'] ?? ''}',
-              style: TextStyle(fontSize: 18),
-            ),
-            SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
                 // print("Clinic ID type: ${widget.clinic['id'].runtimeType}");
@@ -134,69 +218,44 @@ class _ClinicDetailsPageState extends State<ClinicDetailsPage> {
               },
               child: Text('Book Appointment'),
             ),
-
             SizedBox(height: 16),
-            if (clinicLocation.latitude != 0 &&
-                clinicLocation.longitude != 0) ...[
-              Text(
-                'Distance: ${distance.toStringAsFixed(2)} km',
-                style: TextStyle(fontSize: 18),
-              ),
-              SizedBox(height: 16),
-              Expanded(
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(
-                      (widget.userLocation.latitude + clinicLocation.latitude) /
-                          2,
-                      (widget.userLocation.longitude +
-                              clinicLocation.longitude) /
-                          2,
-                    ),
-                    initialZoom: 13.0,
+            Expanded(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng(
+                    (widget.userLocation.latitude + clinicLocation.latitude) / 2,
+                    (widget.userLocation.longitude + clinicLocation.longitude) / 2,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      subdomains: ['a', 'b', 'c'],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: widget.userLocation,
-                          child: Icon(
-                            Icons.person_pin_circle,
-                            color: Colors.blue,
-                            size: 40.0,
-                          ),
-                        ),
-                        Marker(
-                          point: clinicLocation,
-                          child: Icon(
-                            Icons.location_pin,
-                            color: Colors.red,
-                            size: 40.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: routePoints,
-                          color: Colors.green,
-                          strokeWidth: 4.0,
-                        ),
-                      ],
-                    ),
-                  ],
+                  zoom: 13.0,
                 ),
+                markers: {
+                  Marker(
+                    markerId: MarkerId('user'),
+                    position: widget.userLocation,
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                    infoWindow: InfoWindow(title: 'Your Location'),
+                  ),
+                  Marker(
+                    markerId: MarkerId('clinic'),
+                    position: clinicLocation,
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                    infoWindow: InfoWindow(title: 'Clinic Location'),
+                  ),
+                },
+                polylines: {
+                  if (routePoints.isNotEmpty)
+                    Polyline(
+                      polylineId: PolylineId('route'),
+                      points: routePoints,
+                      color: Colors.red,
+                      width: 4,
+                    ),
+                },
+                onMapCreated: (GoogleMapController controller) {
+                  _mapController = controller;
+                },
               ),
-            ] else
-              Center(
-                  child:
-                      CircularProgressIndicator()), // Show loading until location is set
+            ),
           ],
         ),
       ),

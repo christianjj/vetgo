@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:vet_go/reusable_widgets/widgets.dart';
 
 class Landing extends StatefulWidget {
@@ -9,6 +10,12 @@ class Landing extends StatefulWidget {
 }
 
 class _Landing extends State<Landing> {
+  @override
+  void initState() {
+    requestLocationPermission();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -175,5 +182,20 @@ class _Landing extends State<Landing> {
         ),
       ),
     );
+  }
+
+  void requestLocationPermission() async {
+    PermissionStatus status = await Permission.location.request();
+
+    if (status.isGranted) {
+      // Permission granted, proceed with location functionality
+      print("Location permission granted");
+    } else if (status.isDenied) {
+      // Permission denied, inform the user
+      print("Location permission denied");
+    } else if (status.isPermanentlyDenied) {
+      // Permission permanently denied, show settings to enable it manually
+      openAppSettings();
+    }
   }
 }

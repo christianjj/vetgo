@@ -88,7 +88,7 @@ class _HistoryPageState extends State<HistoryPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('History'),
+          title: const Text('Booking'),
           automaticallyImplyLeading: false,
           backgroundColor: const Color.fromRGBO(184, 225, 241, 1),
           elevation: 4,
@@ -141,9 +141,17 @@ class _HistoryPageState extends State<HistoryPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          subtitle: Text(
-                            'Status: ${appointment['status']}',
-                            style: const TextStyle(color: Colors.grey),
+                          subtitle: Column(
+                            children: [
+                              Text(
+                                'Status: ${appointment['status']}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              Text(
+                                '${appointment['notes']}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
                           ),
                           onTap: () {
                             // Handle item tap if necessary
@@ -171,7 +179,7 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.history_rounded),
-          label: 'History',
+          label: 'Booking',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_rounded),

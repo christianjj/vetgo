@@ -327,50 +327,6 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
   }
 
 // Show dialog to confirm logout
-  void _showLogOutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Log Out'),
-          content: Text('Do you really wish to logout?'),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Yes'),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text('Log Out'),
-                      content: Text(
-                          'Thank you for using Vetgo. Admin Logged Out successfully!'),
-                      actions: <Widget>[
-                        TextButton(
-                          child: Text('OK'),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                );
-                Navigator.pushNamed(context, '/');
-              },
-            ),
-            TextButton(
-              child: Text('No'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _updateAppointmentStatus(int index, String newStatus, String? notes ) async {
     final appointmentId = appointments[index]['id'];
     print(appointments[index]['id']);
