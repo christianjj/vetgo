@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
     fetchClinics();
   }
 
@@ -71,7 +72,6 @@ class _HomePageState extends State<HomePage> {
         selectedLocation = gmaps.LatLng(position.latitude, position.longitude);
       });
       _sortClinicsByDistance();
-      _showMapModal();
     } catch (e) {
       _showErrorSnackBar('Error getting location.');
     }
@@ -217,7 +217,7 @@ class _HomePageState extends State<HomePage> {
 
   void _sortClinicsByDistance() {
     setState(() {
-      clinicList.sort((a, b) {
+      filteredClinics.sort((a, b) {
         double distanceA = Geolocator.distanceBetween(
           selectedLocation.latitude,
           selectedLocation.longitude,
@@ -247,6 +247,8 @@ class _HomePageState extends State<HomePage> {
         data['id'] = doc.id; // Add Document ID to the data
         return data;
       }).toList();
+      filteredClinics =clinicList;
+      _getCurrentLocation();
     });
   }
 
@@ -325,20 +327,25 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 controller: searchController,
+                onChanged: (value) {
+                  _filterClinics(value);
+                },
                 decoration: InputDecoration(
                   labelText: 'Search nearest veterinary clinic',
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // IconButton(
+                      //   icon: Icon(Icons.search, color: Colors.blue),
+                      //   onPressed: () {
+                      //     _filterClinics(searchController.text);
+                      //   },
+                      // ),
                       IconButton(
-                        icon: Icon(Icons.search, color: Colors.blue),
-                        onPressed: () {
-                          _filterClinics(searchController.text);
+                        icon: const Icon(Icons.location_on, color: Colors.red),
+                        onPressed: (){
+                          _showMapModal();
                         },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.location_on, color: Colors.red),
-                        onPressed: _getCurrentLocation,
                       ),
                     ],
                   ),
@@ -353,13 +360,20 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: _isLoading
                   ? Center(child: CircularProgressIndicator())
+                  : filteredClinics.isEmpty
+                  ? const Center(
+                child: Text(
+                  'No Clinic Result',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
                   : ListView.builder(
-                      itemCount: clinicList.length,
-                      itemBuilder: (context, index) {
-                        final clinic = clinicList[index];
-                        return _buildClinicCard(clinic);
-                      },
-                    ),
+                itemCount: filteredClinics.length,
+                itemBuilder: (context, index) {
+                  final clinic = filteredClinics[index];
+                  return _buildClinicCard(clinic);
+                },
+              ),
             ),
           ],
         ),

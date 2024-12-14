@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vet_go/screens/ProfilePage.dart';
 import 'package:vet_go/screens/logoutDialog.dart';
+import 'package:vet_go/screens/vetProfilePage.dart';
 
 class ClinicAdminPage extends StatefulWidget {
   @override
@@ -618,6 +620,41 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
     );
   }
 
+  void _showApproveDialog(BuildContext context, Map<String, dynamic> appointment, int index) {
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Approve Appointment'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Are you sure you want to confirm this appointment?'),
+              SizedBox(height: 16),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                  _updateAppointmentStatus(index, 'Approve', '');
+                  Navigator.of(context).pop(); // Close the dialog
+                }
+              ,
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildAppointmentActions(
       BuildContext context, Map<String, dynamic> appointment, int index) {
     switch (appointment['status']) {
@@ -626,7 +663,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             FilledButton.tonal(
-              onPressed: () => _updateAppointmentStatus(index, 'Approve', ''),
+              onPressed: () => _showApproveDialog(context,appointment,index),
               child: const Text('Approve', style: TextStyle(fontSize: 10),),
             ),
             const SizedBox(width: 4),
@@ -779,7 +816,7 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
         automaticallyImplyLeading: false,
       ),
       body:
-          _currentIndex == 0 ? _buildAppointmentsList() : _buildServicesList(),
+          _currentIndex == 0 ? _buildAppointmentsList() : _buildServicesList() ,
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(
@@ -791,18 +828,19 @@ class _ClinicAdminPageState extends State<ClinicAdminPage> {
             label: 'Services',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.logout),
-            label: 'Logout',
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
         currentIndex: _currentIndex,
         onTap: (index) {
           if (index == 2) {
-            LogoutDialog.showLogoutDialog(context, () {
-              // Handle logout logic here
-              _auth.signOut();
-              Navigator.pushNamed(context, '/');
-            }); // Show logout confirmation dialog
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => vetProfilePage(),
+              ),
+            ); // Show logout confirmation dialog
           } else {
             setState(() {
               _currentIndex = index; // Change the tab

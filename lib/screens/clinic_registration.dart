@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
@@ -16,6 +19,7 @@ class ClinicRegistrationPage extends StatefulWidget {
 class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final _formKey = GlobalKey<FormState>();
   final TextEditingController ownerNameController = TextEditingController();
   final TextEditingController ownerEmailController = TextEditingController();
@@ -53,14 +57,28 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
   Future<void> _pickFile(String documentType) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['doc', 'docx', 'pdf', 'img', 'jpg', 'png', 'gif'],
+      allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
     );
 
     if (result != null && result.files.single.path != null) {
       String? filePath = result.files.single.path;
       setState(() {
-        uploadedFiles[documentType] = filePath; // Store file path
+        uploadedFiles[documentType] = filePath;
       });
+    }
+  }
+
+  Future<String?> _uploadFileToFirebase(String filePath, String fileName) async {
+    try {
+      File file = File(filePath);
+      Reference ref = _storage.ref().child('clinic_documents/$fileName');
+      await ref.putFile(file);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File upload failed: $e')),
+      );
+      return null;
     }
   }
 
@@ -79,32 +97,6 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
     }
   }
 
-  void _viewDocument(String? filePath) async {
-    if (filePath != null) {
-      // Attempt to open the file using OpenFile
-      final result = await OpenFile.open(filePath);
-      if (result.type == ResultType.error) {
-        // Show an error if the file can't be opened
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Error'),
-              content: Text('Could not open the document.'),
-              actions: [
-                TextButton(
-                  child: Text('Close'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      }
-    }
-  }
 
   void _showMapModal() {
     final MapController mapController = MapController();
@@ -300,31 +292,38 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
     );
   }
 
-  _submitForm() async {
+  Future<void> _submitForm() async {
     setState(() {
       _isLoading = true;
     });
-    Map<String, dynamic> filesToUpload = {};
-    uploadedFiles.forEach((key, value) {
-      filesToUpload[key] =
-          value; // You might need to handle file uploads differently
-    });
+    Map<String, String?> fileDownloadUrls = {};
     bool allFilesUploaded =
-        uploadedFiles.values.every((filePath) => filePath != null);
+    uploadedFiles.values.every((filePath) => filePath != null);
+
+
     if (_formKey.currentState!.validate()) {
-      // Check if all required files are uploaded
       if (!allFilesUploaded) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Please upload all required documents')),
         );
-        return;
-      } else {
         setState(() {
           _isLoading = false;
         });
+        return;
       }
 
+
       try {
+        for (String documentType in uploadedFiles.keys) {
+          String? filePath = uploadedFiles[documentType];
+          if (filePath != null) {
+            String? downloadUrl = await _uploadFileToFirebase(
+                filePath, '$documentType-${DateTime.now().millisecondsSinceEpoch}');
+            if (downloadUrl != null) {
+              fileDownloadUrls[documentType] = downloadUrl;
+            }
+          }
+        }
         // Create a user for the shop owner
         UserCredential userCredential =
             await _auth.createUserWithEmailAndPassword(
@@ -346,7 +345,7 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
           'registration_number': registrationNumber,
           'isClinic': true,
           'userType': "clinic",
-          'uploaded_files': filesToUpload,
+          'uploaded_files': fileDownloadUrls,
           'createdAt': DateTime.now(),
         });
 
@@ -365,64 +364,6 @@ class _ClinicRegistrationPageState extends State<ClinicRegistrationPage> {
           _isLoading = false;
         });
       }
-
-      // Submit the form data to the server
-      // String ownerName = ownerNameController.text;
-      // String ownerEmail = ownerEmailController.text;
-      // String ownerId = ownerIdController.text;
-      // String clinicName = clinicNameController.text;
-      // String clinicAddress = clinicAddressController.text;
-      //
-      // // Prepare files for upload (if your API expects file paths or base64)
-      // // Here, we'll assume you send file paths as strings. Adjust accordingly.
-      // Map<String, dynamic> filesToUpload = {};
-      // uploadedFiles.forEach((key, value) {
-      //   filesToUpload[key] =
-      //       value; // You might need to handle file uploads differently
-      // });
-      //
-      // // Send API request to register clinic
-      // final response = await http.post(
-      //   Uri.parse(
-      //       'http://10.0.2.2/VETGO/register_clinic.php'), // Update with your API endpoint
-      //   headers: <String, String>{
-      //     'Content-Type': 'application/json; charset=UTF-8',
-      //   },
-      //   body: jsonEncode(<String, dynamic>{
-      //     'owner_name': ownerName,
-      //     'owner_email': ownerEmail,
-      //     'owner_id_number': ownerId,
-      //     'clinic_name': clinicName,
-      //     'clinic_address': clinicAddress,
-      //     'latitude': selectedLocation.latitude,
-      //     'longitude': selectedLocation.longitude,
-      //     'registration_number': registrationNumber,
-      //     'uploaded_files': filesToUpload, // Include uploaded file paths
-      //   }),
-      // );
-      //
-      // if (response.statusCode == 200) {
-      //   final responseBody = jsonDecode(response.body);
-      //   if (responseBody['error'] != null) {
-      //     // Handle specific error messages
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text(responseBody['error'])),
-      //     );
-      //   } else {
-      //     // Successfully registered
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text('Clinic registered successfully!')),
-      //     );
-      //     // Navigate to the admin home page
-      //     Navigator.pushReplacementNamed(
-      //         context, '/clinic_admin'); // Ensure you have this route set up
-      //   }
-      // } else {
-      //   // Error registering
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(content: Text('Failed to register clinic!')),
-      //   );
-      // }
     } else {
       setState(() {
         _isLoading = false;
